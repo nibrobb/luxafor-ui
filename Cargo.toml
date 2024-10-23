@@ -1,0 +1,4 @@
+[workspace]
+resolver = "2"
+members = ["luxafor_ui", "luxafor_cmd_runner"]
+package.authors = ["Robin Kristiansen <robin.kristiansen@hkdir.no>"]

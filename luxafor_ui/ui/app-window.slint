@@ -1,0 +1,23 @@
+import { Button, VerticalBox } from "std-widgets.slint";
+
+export component MainUI inherits Window {
+    callback button-blicky();
+    width: 350px;
+    height: 200px;
+
+    VerticalBox {
+        
+        Text {
+            text: "Click the button to open Notepad";
+            font-size: 14pt;
+            horizontal-alignment: center;
+        }
+
+        Button {
+            text: "Clicky for a blicky";
+            clicked => {
+                root.button-blicky();
+            }
+        }
+    }
+}
