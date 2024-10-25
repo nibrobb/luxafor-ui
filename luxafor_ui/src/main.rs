@@ -3,19 +3,26 @@
 
 use std::error::Error;
 use luxafor_cmd_runner;
+use luxafor_cmd_runner::BusylightColor;
 
 slint::include_modules!();
 
 fn main() -> Result<(), Box<dyn Error>> {
     let ui = MainUI::new()?;
 
-    ui.on_button_blicky({
-        // let ui_handle = ui.as_weak();
+    ui.on_button_green({
         move || {
-            // let ui = ui_handle.unwrap();
-            // let output = 
-            luxafor_cmd_runner::open_notepad();
-            // print!("{}", String::from_utf8_lossy(&output.stdout))
+            luxafor_cmd_runner::busylight_set_solid(BusylightColor::Green);
+        }
+    });
+    ui.on_button_red({
+        move || {
+            luxafor_cmd_runner::busylight_set_solid(BusylightColor::Red);
+        }
+    });
+    ui.on_button_off({
+        move || {
+            luxafor_cmd_runner::busylight_off();
         }
     });
 

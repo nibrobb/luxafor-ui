@@ -1,22 +1,62 @@
-import { Button, VerticalBox } from "std-widgets.slint";
+import { Button, VerticalBox, GridBox, HorizontalBox, TextEdit, AboutSlint } from "std-widgets.slint";
 
 export component MainUI inherits Window {
     callback button-blicky();
-    width: 350px;
-    height: 200px;
+    callback button-green();
+    callback button-off();
+    callback button-red();
+    width: 500px;
+    height: 500px;
 
-    VerticalBox {
-        
-        Text {
-            text: "Click the button to open Notepad";
-            font-size: 14pt;
-            horizontal-alignment: center;
-        }
+    background: #333333;
 
-        Button {
-            text: "Clicky for a blicky";
-            clicked => {
-                root.button-blicky();
+    GridLayout {
+        HorizontalBox {
+            VerticalBox {
+                alignment: center;
+                // TextEdit {
+                //     width: 300px;
+                //     placeholder-text: "Write something here";
+                // }
+                AboutSlint {
+                    width: 200px;
+                }
+            }
+            VerticalBox {
+                alignment: center;
+                spacing: 50px;
+
+                HorizontalBox {
+                    alignment: center;
+                    Rectangle {
+                        background: green;
+                        width: 100px;
+                        height: 100px;
+
+                        Button {
+                            text: "Green";
+                            clicked => {button-green()}
+                        }
+                    }
+                    Rectangle {
+                        background: red;
+                        width: 100px;
+                        height: 100px;
+
+                        Button {
+                            text: "Red";
+                            clicked => {button-red()}
+                        }
+                    }
+                    
+                }
+                HorizontalBox {
+                    alignment: center;
+                    Button {
+                        text: "Turn off";
+                        clicked => {button-off()}
+                    }
+                }
             }
         }
     }
