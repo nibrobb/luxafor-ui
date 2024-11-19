@@ -28,7 +28,7 @@ fn set_free() -> luxafor::error::Result<()> {
     let mut device = discovery.device()?;
     println!("USB device: '{}'", device.id());
     device.set_specific_led(SpecificLED::All).expect("TODO: panic message");
-    Ok(device.set_solid_color(SolidColor::Red).expect("TODO: panic message"))
+    Ok(device.set_solid_color(SolidColor::Green).expect("TODO: panic message"))
 }
 
 fn load_icon(path: &std::path::Path) -> tray_icon::Icon {
