@@ -52,7 +52,6 @@ pub fn App() -> impl IntoView {
                 </a>
             </div>
             <p>"Click on the Tauri and Leptos logos to learn more."</p>
-
             <form class="row" on:submit=greet>
                 <input
                     id="greet-input"
@@ -63,5 +62,8 @@ pub fn App() -> impl IntoView {
             </form>
             <p>{ move || greet_msg.get() }</p>
         </main>
+        <div>
+            <p>How to center a div</p>
+        </div>
     }
 }
