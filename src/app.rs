@@ -40,7 +40,7 @@ pub fn App() -> impl IntoView {
         <div class="header">
             <div class="row">
                 <a href="https://tauri.app" target="_blank">
-                    <img width="75" src="public/tauri.svg" class="logo tauri" alt="Tauri logo"/>
+                    <img width="60" src="public/tauri.svg" class="logo tauri" alt="Tauri logo"/>
                 </a>
                 <a href="https://docs.rs/leptos/" target="_blank">
                     <img width="75" src="public/leptos.svg" class="logo leptos" alt="Leptos logo"/>
@@ -51,12 +51,11 @@ pub fn App() -> impl IntoView {
             <form class="row" on:submit=on_set_color>
                 <input
                     id="luxafor-color"
-                    placeholder="Enter a name..."
+                    placeholder="Enter a color..."
                     on:input=update_color
                 />
-                <button type="submit">"Greet"</button>
+                <button type="submit">"Set"</button>
             </form>
-            <p>{ move || color.get() }</p>
         </main>
     }
 }
