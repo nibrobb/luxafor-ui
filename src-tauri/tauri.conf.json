@@ -14,12 +14,18 @@
     "windows": [
       {
         "title": "luxafor-ui",
-        "width": 800,
+        "width": 300,
         "height": 600
       }
     ],
     "security": {
       "csp": null
+    },
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "id": "luxafor_ui_tray_icon",
+      "menuOnLeftClick": true,
+      "tooltip": "Luxafor UI"
     }
   },
   "bundle": {

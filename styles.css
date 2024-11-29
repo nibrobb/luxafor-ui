@@ -17,6 +17,15 @@
   -webkit-text-size-adjust: 100%;
 }
 
+.header {
+  margin: 0;
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
 .container {
   margin: 0;
   padding-top: 10vh;
