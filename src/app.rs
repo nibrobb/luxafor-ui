@@ -1,5 +1,7 @@
-use leptos::leptos_dom::ev::SubmitEvent;
+use leptos::prelude::*;
+use leptos::task::spawn_local;
 use leptos::*;
+
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -16,26 +18,14 @@ struct ColorArgs<'a> {
 
 #[component]
 pub fn App() -> impl IntoView {
-    let (color, set_color) = create_signal(String::new());
-
-    let update_color = move |ev| {
-        let v = event_target_value(&ev);
-        set_color.set(v);
-    };
-    let on_set_color = move |ev: SubmitEvent| {
-        ev.prevent_default();
+    let change_color = move |color: &str| {
+        let color = color.to_string();
         spawn_local(async move {
-            let color = color.get_untracked();
-            if color.is_empty() {
-                return;
-            }
-
             let args = serde_wasm_bindgen::to_value(&ColorArgs { color: &color }).unwrap();
-            // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-            let color = invoke("set_light_color", args).await.as_string().unwrap();
-            set_color.set(color);
+            invoke("set_light_color", args).await;
         });
     };
+
     view! {
         <div class="header">
             <div class="row">
@@ -48,14 +38,14 @@ pub fn App() -> impl IntoView {
             </div>
         </div>
         <main class="container">
-            <form class="row" on:submit=on_set_color>
-                <input
-                    id="luxafor-color"
-                    placeholder="Enter a color..."
-                    on:input=update_color
-                />
-                <button type="submit">"Set"</button>
-            </form>
+            <button on:click=move |_| change_color("red") >"Red"</button>
+            <button on:click=move |_| change_color("green") >"Green"</button>
+            <button on:click=move |_| change_color("yellow") >"Yellow"</button>
+            <button on:click=move |_| change_color("blue") >"Blue"</button>
+            <button on:click=move |_| change_color("cyan") >"Cyan"</button>
+            <button on:click=move |_| change_color("magenta") >"Magenta"</button>
+            <button on:click=move |_| change_color("white") >"White"</button>
+            <button on:click=move |_| change_color("off") >"Turn off"</button>
         </main>
     }
 }

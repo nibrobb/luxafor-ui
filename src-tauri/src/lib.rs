@@ -1,12 +1,10 @@
+use std::str::FromStr;
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-use luxafor::{
-    Device,
-    SolidColor,
-    usb_hid::USBDeviceDiscovery
-};
+use luxafor::{usb_hid::USBDeviceDiscovery, Device, SolidColor};
 
 use tauri::{
-    menu::{Menu, MenuItem, AboutMetadataBuilder, PredefinedMenuItem},
+    menu::{AboutMetadataBuilder, Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
 };
 
@@ -17,34 +15,37 @@ fn set_light_color(color: &str) -> Result<(), String> {
 
     println!("USB Device: {:?}", device.id());
 
-    let parsed_color = match color {
-        "green" => SolidColor::Green,
-        "red" => SolidColor::Red,
-        "blue" => SolidColor::Blue,
-        _ => return Err("Unsupported color".to_string()),
+    let result = match color {
+        "off" => device.turn_off().map_err(|e| e.to_string()),
+        _ => {
+            if let Ok(parsed_color) = SolidColor::from_str(color) {
+                device
+                    .set_solid_color(parsed_color)
+                    .map_err(|e| e.to_string())
+            } else {
+                return Err(String::from("Invalid color"));
+            }
+        }
     };
 
-    device
-        .set_solid_color(parsed_color)
-        .map_err(|e| e.to_string())
+    result
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
+            let aboutmeta = AboutMetadataBuilder::new()
+                .authors(Some(vec![String::from("Robin Kristiansen")]))
+                .icon(Some(app.default_window_icon().unwrap().clone()))
+                .build();
+            let about_i = PredefinedMenuItem::about(app, Some("About"), Some(aboutmeta))?;
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let about_i = PredefinedMenuItem::about(
+
+            let menu = Menu::with_items(
                 app,
-                Some("About"),
-                Some(
-                    AboutMetadataBuilder::new()
-                        .authors(Some(vec![String::from("Robin Kristiansen")]))
-                        .icon(Some(app.default_window_icon().unwrap().clone()))
-                        .build(),
-                ),
+                &[&about_i, &PredefinedMenuItem::separator(app)?, &quit_i],
             )?;
-            let menu = Menu::with_items(app, &[&about_i, &quit_i])?;
 
             let _tray = TrayIconBuilder::new()
                 .menu(&menu)
