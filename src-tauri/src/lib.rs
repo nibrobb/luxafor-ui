@@ -15,10 +15,13 @@ fn set_light_color(color: &str) -> Result<(), String> {
 
     println!("USB Device: {:?}", device.id());
 
-    let result = match color {
+    println!("Color received: {:?}", color);
+
+    let s = color.to_lowercase();
+    let result = match s.as_str() {
         "off" => device.turn_off().map_err(|e| e.to_string()),
         _ => {
-            if let Ok(parsed_color) = SolidColor::from_str(color) {
+            if let Ok(parsed_color) = SolidColor::from_str(&s) {
                 device
                     .set_solid_color(parsed_color)
                     .map_err(|e| e.to_string())

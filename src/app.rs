@@ -5,29 +5,41 @@ use leptos::*;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
+
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
     async fn invoke(cmd: &str, args: JsValue) -> JsValue;
 }
 
+
 #[derive(Serialize, Deserialize)]
 struct ColorArgs<'a> {
     color: &'a str,
 }
 
+
 #[component]
-pub fn App() -> impl IntoView {
-    let change_color = move |color: &str| {
-        let color = color.to_string();
+fn ColorButton(color: &'static str) -> impl IntoView {
+    let change_color = move |color1: &str| {
+        let color2 = color1.to_string();
         spawn_local(async move {
-            let args = serde_wasm_bindgen::to_value(&ColorArgs { color: &color }).unwrap();
+            let args = serde_wasm_bindgen::to_value(&ColorArgs { color: &color2 }).unwrap();
             invoke("set_light_color", args).await;
         });
     };
-
     view! {
-        <div class="header">
+        <button id=format!("button_{color}") on:click=move |_| change_color(color)>
+            {color}
+        </button>
+    }
+}
+
+
+#[component]
+pub fn App() -> impl IntoView {
+    view! {
+        <main class="container">
             <div class="row">
                 <a href="https://tauri.app" target="_blank">
                     <img width="60" src="public/tauri.svg" class="logo tauri" alt="Tauri logo"/>
@@ -36,16 +48,14 @@ pub fn App() -> impl IntoView {
                     <img width="75" src="public/leptos.svg" class="logo leptos" alt="Leptos logo"/>
                 </a>
             </div>
-        </div>
-        <main class="container">
-            <button on:click=move |_| change_color("red") >"Red"</button>
-            <button on:click=move |_| change_color("green") >"Green"</button>
-            <button on:click=move |_| change_color("yellow") >"Yellow"</button>
-            <button on:click=move |_| change_color("blue") >"Blue"</button>
-            <button on:click=move |_| change_color("cyan") >"Cyan"</button>
-            <button on:click=move |_| change_color("magenta") >"Magenta"</button>
-            <button on:click=move |_| change_color("white") >"White"</button>
-            <button on:click=move |_| change_color("off") >"Turn off"</button>
+            <ColorButton color="Red"/>
+            <ColorButton color="Green"/>
+            <ColorButton color="Blue"/>
+            <ColorButton color="Yellow"/>
+            <ColorButton color="Cyan"/>
+            <ColorButton color="Magenta"/>
+            <ColorButton color="White"/>
+            <ColorButton color="Off"/>
         </main>
     }
 }
