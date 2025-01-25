@@ -6,9 +6,23 @@ Goal: create a simple, cross-platform graphical user interface to control the [L
 
 Get your [prerequisites](https://tauri.app/start/prerequisites/) in order first
 
+# Dependencies (Linux only)
+
+## Debian / Ubuntu
+```bash
+sudo apt install libgtk-3-dev libgdk3.0-cil-dev libatk1.0-dev libxdo-dev\
+ librust-gio-sys-dev librust-pango-sys-dev librust-soup3-sys-dev\
+ librust-gdk-pixbuf-sys-dev libjavascriptcoregtk-4.1-dev\
+ libwebkit2gtk-4.1-dev libayatana-appindicator3-dev # or libappindicator3-dev
+```
+
+## NixOS
+Use included `shell.nix`
+
+
 ## Common steps
 ```bash
-cargo install --locked --version "^2.0.0" tauri-cli 
+cargo install --locked --version "^2.0" tauri-cli 
 cargo install --locked --no-default-features --features update_check,rustls trunk
 rustup target add wasm32-unknown-unknown
 ```
