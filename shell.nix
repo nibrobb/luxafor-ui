@@ -4,27 +4,35 @@ let
   libPath = with pkgs;
     lib.makeLibraryPath [
       pkgs.libayatana-appindicator
-#     pkgs.libappindicator
+# or pkgs.libappindicator
     ];
 in
   pkgs.mkShell rec {
-    buildInputs = with pkgs; [
-      clang
-      gcc
-      llvmPackages.bintools
-      rustup
-      openssl
+    nativeBuildInputs = with pkgs; [
       pkg-config
-      udev
+      gobject-introspection
+      cargo
+      cargo-tauri
+      nodejs
+    ];
+
+    buildInputs = with pkgs; [
+      at-spi2-atk
+      atkmm
+      cairo
       gdk-pixbuf
-      gtk3
-      webkitgtk_4_0
-      libsoup_3
-      libayatana-appindicator
-#     libappindicator
-      xdo
       glib
+      gtk3
+      harfbuzz
+      librsvg
+      libsoup_3
       pango
+      webkitgtk_4_1
+      openssl
+      udev
+      xdo
+      libayatana-appindicator
+# or libappindicator
     ];
     RUSTC_VERSION = overrides.toolchain.channel;
     # https://github.com/rust-lang/rust-bindgen#environment-variables
@@ -52,3 +60,4 @@ in
         ''-I${pkgs.glib.out}/lib/glib-2.0/include/''
       ];
   }
+

@@ -22,7 +22,7 @@ Use included `shell.nix`
 
 ## Common steps
 ```bash
-cargo install --locked --version "^2.0" tauri-cli 
+cargo install --locked --version "^2.0" tauri-cli
 cargo install --locked --no-default-features --features update_check,rustls trunk
 rustup target add wasm32-unknown-unknown
 ```
