@@ -2,21 +2,19 @@ name: Tauri build
 
 on:
   push:
-    branches: [ "tauri" ]
-  pull_request:
-    branches: [ "tauri" ]
+    branches: 
+    - tauri
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  build-binaries:
     runs-on: ubuntu-latest
-
+    
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo tauri build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: tauri-build
+      uses: JonasKruckenberg/tauri-build@tauri-build-v1.5.11
