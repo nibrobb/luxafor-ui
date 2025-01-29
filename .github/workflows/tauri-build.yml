@@ -1,11 +1,11 @@
-name: 'publish'
+name: 'Build and publish bundles'
 
 on:
   push:
     branches:
       - tauri
 
-# This workflow will trigger on each push to the `release` branch to create or update a GitHub release, build your app, and upload the artifacts to the release.
+# This workflow will trigger on each push to the `tauri` branch to create or update a GitHub release, build your app, and upload the artifacts to the release.
 
 jobs:
   publish-tauri:
@@ -39,13 +39,13 @@ jobs:
           # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      - name: Install wasm-bindgen (ony for Apple M1 and up)
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@v1.10.22
+
+      - name: Install wasm-bindgen (only for Apple M1 and up since they are not in binstall)
         if: matrix.platform == 'macos-latest'
         run: |
           cargo install --locked wasm-bindgen-cli
-
-      - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@v1.10.22
 
       - name: BInstall trunk
         run: |
@@ -55,7 +55,7 @@ jobs:
         run: |
           rustup target add wasm32-unknown-unknown
 
-      - name: install dependencies (ubuntu only)
+      - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
         run: |
           sudo apt-get update
@@ -67,8 +67,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
-          releaseName: 'tauri-ui v__VERSION__'
+          releaseName: 'v__VERSION__-alpha'
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
-          prerelease: false
+          prerelease: true
           args: ${{ matrix.args }}
