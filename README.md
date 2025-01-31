@@ -1,11 +1,15 @@
 # Luxafor-ui
 >Goal: create a simple, cross-platform graphical user interface to control the [Luxafor Flag](https://luxafor.com/products/) and perhaps other Luxafor busylights
 
-
 # Getting started
 
+## Installation
 Pre-built binaries for the most common operating systems are available from [releases](https://github.com/nibrobb/luxafor-ui/releases), expand 'Assets' then choose the distribution that is right for your system.
+If you are on Mac, good luck.
 
+### Post-install
+
+See [POST-INSTALL.md](./POST-INSTALL.md)
 
 ## Build it yourself
 Get your Tauri [prerequisites](https://tauri.app/start/prerequisites/) in order first
@@ -15,11 +19,14 @@ Get your Tauri [prerequisites](https://tauri.app/start/prerequisites/) in order 
 sudo apt install libgtk-3-dev libgdk3.0-cil-dev libatk1.0-dev libxdo-dev\
  librust-gio-sys-dev librust-pango-sys-dev librust-soup3-sys-dev\
  librust-gdk-pixbuf-sys-dev libjavascriptcoregtk-4.1-dev\
- libwebkit2gtk-4.1-dev libayatana-appindicator3-dev # or libappindicator3-dev
+ libwebkit2gtk-4.1-dev \
+ libayatana-appindicator3-dev # or libappindicator3-dev
 ```
 
 ## NixOS
 Use included `shell.nix`
+
+Good luck.
 
 
 ## Common steps
@@ -60,6 +67,9 @@ cargo tauri build
 ### References
 #### Setting up `trunk` to not use native Open SSL (which is a pain in the ass to set up)
 - https://users.rust-lang.org/t/install-cargo-trunk-issue-with-x86-64-pc-windows-gnu-target/121119
+
+#### Inspiration and udev rules borrowed from
+- https://github.com/JnyJny/busylight
 
 #### Luxafor library in rust
 - https://crates.io/crates/luxafor
