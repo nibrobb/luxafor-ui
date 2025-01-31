@@ -1,9 +1,12 @@
 name: 'Build and publish bundles'
 
 on:
-  push:
-    branches:
-      - tauri
+  # Manual trigger
+  workflow_dispatch:
+  # Automatic build, bundle and publishing
+#  push:
+#    branches:
+#      - tauri
 
 # This workflow will trigger on each push to the `tauri` branch to create or update a GitHub release, build your app, and upload the artifacts to the release.
 
