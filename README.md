@@ -10,7 +10,7 @@ Pre-built binaries for the most common operating systems are available from [rel
 ## Build it yourself
 Get your Tauri [prerequisites](https://tauri.app/start/prerequisites/) in order first
 
-# Dependencies (Debian/Ubuntu only)
+## Dependencies (Debian/Ubuntu only)
 ```bash
 sudo apt install libgtk-3-dev libgdk3.0-cil-dev libatk1.0-dev libxdo-dev\
  librust-gio-sys-dev librust-pango-sys-dev librust-soup3-sys-dev\
