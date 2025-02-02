@@ -3,6 +3,9 @@
 These instructions will vary depending on your operating system. I can only hope it works on Mac, but I have no way of testing it at this moment
 
 ## Linux (Ubuntu, maybe others)
+Should not be neccecary on Debian/Ubuntu when using the `.deb` package from releases
+
+
 By default [udev](https://en.wikipedia.org/wiki/Udev) denies access to devices by non-root users.
 Meaning you can run luxafor-ui using `sudo luxafor-ui`, but I would advice you to add this udev rule
 

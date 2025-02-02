@@ -4,8 +4,9 @@
 # Getting started
 
 ## Installation
-Pre-built binaries for the most common operating systems are available from [releases](https://github.com/nibrobb/luxafor-ui/releases), expand 'Assets' then choose the distribution that is right for your system.
+[Releases](https://github.com/nibrobb/luxafor-ui/releases), expand 'Assets' then choose the distribution that is right for your system.
 If you are on Mac, good luck.
+
 
 ### Post-install
 

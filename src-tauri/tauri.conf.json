@@ -23,6 +23,15 @@
     }
   },
   "bundle": {
+    "linux": {
+      "deb": {
+            "depends": ["udev"],
+            "files": {
+              "/etc/udev/rules.d/99-luxafor-ui.rules": "extra/99-luxafor-ui.rules"
+            },
+            "postInstallScript": "scripts/postinst"
+        }
+    },
     "active": true,
     "targets": "all",
     "icon": [

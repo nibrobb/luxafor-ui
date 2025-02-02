@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -e
+
+# Reload udev
+udevadm control --reload-rules
+
+# Trigger udev rules
+udevadm trigger
+
+exit 0
+
