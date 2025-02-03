@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    luxafor_ui_backend_lib::run()
+    luxafor_ui_lib::run()
 }

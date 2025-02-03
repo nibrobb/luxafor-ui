@@ -13,10 +13,6 @@ fn set_light_color(color: &str) -> Result<(), String> {
     let discovery = USBDeviceDiscovery::new().map_err(|e| e.to_string())?;
     let device = discovery.device().map_err(|e| e.to_string())?;
 
-    println!("USB Device: {:?}", device.id());
-
-    println!("Color received: {:?}", color);
-
     let s = color.to_lowercase();
     let result = match s.as_str() {
         "off" => device.turn_off().map_err(|e| e.to_string()),
@@ -44,23 +40,20 @@ pub fn run() {
                 .build();
             let about_i = PredefinedMenuItem::about(app, Some("About"), Some(aboutmeta))?;
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-
             let menu = Menu::with_items(
                 app,
                 &[&about_i, &PredefinedMenuItem::separator(app)?, &quit_i],
             )?;
-
             let _tray = TrayIconBuilder::new()
                 .menu(&menu)
                 .show_menu_on_left_click(true)
                 .icon(app.default_window_icon().unwrap().clone())
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => {
-                        println!("Quit meny item was clicked");
                         app.exit(0);
                     }
                     _ => {
-                        println!("Menu item {:?} not handled", event.id);
+                        eprintln!("Menu item {:?} not handled", event.id);
                     }
                 })
                 .build(app)?;

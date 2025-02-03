@@ -1,4 +1,3 @@
 # Luxafor Flag
 KERNEL=="hidraw*", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="f372", MODE="0660"
 SUBSYSTEM=="usb", ATTRS{idVendor}=="04d8", ATTRS{idProduct}=="f372", MODE="0660"
-

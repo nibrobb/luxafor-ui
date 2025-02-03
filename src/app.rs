@@ -5,19 +5,16 @@ use leptos::*;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
-
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
     async fn invoke(cmd: &str, args: JsValue) -> JsValue;
 }
 
-
 #[derive(Serialize, Deserialize)]
 struct ColorArgs<'a> {
     color: &'a str,
 }
-
 
 #[component]
 fn ColorButton(color: &'static str) -> impl IntoView {
@@ -34,7 +31,6 @@ fn ColorButton(color: &'static str) -> impl IntoView {
         </button>
     }
 }
-
 
 #[component]
 pub fn App() -> impl IntoView {
