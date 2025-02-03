@@ -1,5 +1,9 @@
 # Luxafor-ui
->Goal: create a simple, cross-platform graphical user interface to control the [Luxafor Flag](https://luxafor.com/products/) and perhaps other Luxafor busylights
+
+<p align="center">
+    <img src="./public/gui.png">
+</p>
+
 
 # Getting started
 
@@ -21,7 +25,7 @@ sudo apt install libgtk-3-dev libgdk3.0-cil-dev libatk1.0-dev libxdo-dev\
  librust-gio-sys-dev librust-pango-sys-dev librust-soup3-sys-dev\
  librust-gdk-pixbuf-sys-dev libjavascriptcoregtk-4.1-dev\
  libwebkit2gtk-4.1-dev \
- libayatana-appindicator3-dev # or libappindicator3-dev
+ libappindicator3-dev # libayatana-appindicator3-dev
 ```
 
 ## NixOS
