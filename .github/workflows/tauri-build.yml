@@ -3,6 +3,13 @@ name: 'Build and publish bundles'
 on:
   # Manual trigger
   workflow_dispatch:
+    inputs:
+      chosen-os:
+        required: true
+        type: choice
+        options:
+        - 'Ubuntu 22.04'
+        - 'Windows'
   # Automatic build, bundle and publishing
 #  push:
 #    branches:
@@ -16,18 +23,20 @@ jobs:
       contents: write
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - platform: 'macos-latest' # for Arm based macs (M1 and above).
-            args: '--target aarch64-apple-darwin'
-          - platform: 'macos-latest' # for Intel based macs.
-            args: '--target x86_64-apple-darwin'
-          - platform: 'ubuntu-22.04'
-            args: ''
-          - platform: 'self-hosted'  # Windows 11
-            args: ''
+#      matrix:
+#        include:
+#        # Ignore macos for now as there are some bundling issues
+#          - platform: 'macos-latest' # for Arm based macs (M1 and above).
+#            args: '--target aarch64-apple-darwin'
+#          - platform: 'macos-latest' # for Intel based macs.
+#            args: '--target x86_64-apple-darwin'
+#          - platform: 'ubuntu-22.04'
+#            args: ''
+#          - platform: 'self-hosted'  # Windows 11
+#            args: ''
 
-    runs-on: ${{ matrix.platform }}
+    #runs-on: ${{ matrix.platform }}
+    runs-on: [self-hosted, "${{ inputs.chosen-os }}"]
     steps:
       - uses: actions/checkout@v4
 
