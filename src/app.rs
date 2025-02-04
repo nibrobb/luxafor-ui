@@ -26,7 +26,7 @@ fn ColorButton(color: &'static str) -> impl IntoView {
         });
     };
     view! {
-        <button id=format!("button_{color}") on:click=move |_| change_color(color)>
+        <button data-color={color} on:click=move |_| change_color(color)>
             {color}
         </button>
     }
@@ -36,7 +36,7 @@ fn ColorButton(color: &'static str) -> impl IntoView {
 pub fn App() -> impl IntoView {
     view! {
         <main class="container">
-            <div class="row">
+            <div id="logo-row">
                 <a href="https://tauri.app" target="_blank">
                     <img width="60" src="public/tauri.svg" class="logo tauri" alt="Tauri logo"/>
                 </a>

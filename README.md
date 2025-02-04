@@ -1,19 +1,19 @@
 # Luxafor-ui
 
 <p align="center">
-    <img src="./public/gui.png">
+    <img src="./public/gui.png" alt="Luxafor-ui in dark mode" />
 </p>
-
+<br clear="right"/>
 
 # Getting started
 
 ## Installation
-[Releases](https://github.com/nibrobb/luxafor-ui/releases), expand 'Assets' then choose the distribution that is right for your system.
+Go to [Releases](https://github.com/nibrobb/luxafor-ui/releases), expand 'Assets', then choose the distribution that is right for your system.
 If you are on Mac, good luck.
 
 
-### Post-install
-
+### Post-install 
+Really only relevant for versions of Luxafor-ui < v0.1.0-alpha.2 and distros not supporting .deb or .rpm packages
 See [POST-INSTALL.md](./POST-INSTALL.md)
 
 ## Build it yourself
@@ -29,7 +29,7 @@ sudo apt install libgtk-3-dev libgdk3.0-cil-dev libatk1.0-dev libxdo-dev\
 ```
 
 ## NixOS
-Use included `shell.nix`
+Use included `shell.nix` (will need tweaking)
 
 Good luck.
 
