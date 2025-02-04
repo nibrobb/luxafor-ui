@@ -26,7 +26,6 @@
     "category": "Utility",
     "homepage": "https://github.com/nibrobb/luxafor-ui",
     "license": "MIT",
-    "licenseFile": "../LICENSE.md",
     "copyright": "Robin Kristiansen (c) 2025",
     "shortDescription": "A simple app to control your Luxafor Flag",
     "longDescription": "This application gives you a system tray icon/app-indicator to control the Luxafor Flag as well as a neat graphical user interface with assorted colors to chose from",
