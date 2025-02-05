@@ -35,7 +35,7 @@ jobs:
           bins: tauri-cli@2,trunk,wasm-bindgen-cli
           cache-target: release
           channel: stable
-          targets: wasm32-unknown-unknown,${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: wasm32-unknown-unknown ${{ matrix.platform == 'macos-latest' && ',aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
 
       - name: Install dependencies (Ubuntu only)
