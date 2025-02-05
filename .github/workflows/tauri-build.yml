@@ -29,8 +29,8 @@ jobs:
         with:
           node-version: lts/*
 
-      - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@v1.10.22
+#      - name: Install cargo-binstall
+#        uses: cargo-bins/cargo-binstall@v1.10.22
 
       - name: Setup Rust and Cargo (Windows and Ubuntu)
         if: matrix.platform != 'macos-latest'
@@ -49,11 +49,11 @@ jobs:
 
       - name: Install Trunk-rs (MacOS)
         if: matrix.platform == 'macos-latest'
-        run: cargo install --locked trunk
+        run: cargo install trunk
 
       - name: Install wasm-bindgen (MacOS)
         if: matrix.platform == 'macos-latest'
-        run: cargo install --locked wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli
 
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
