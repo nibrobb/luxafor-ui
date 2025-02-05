@@ -29,9 +29,6 @@ jobs:
         with:
           node-version: lts/*
 
-#      - name: Install cargo-binstall
-#        uses: cargo-bins/cargo-binstall@v1.10.22
-
       - name: Setup Rust and Cargo (Windows and Ubuntu)
         if: matrix.platform != 'macos-latest'
         uses: moonrepo/setup-rust@v1.2.1
