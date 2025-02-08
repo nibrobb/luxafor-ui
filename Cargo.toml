@@ -2,12 +2,13 @@
 name = "luxafor-ui-frontend"
 version = "0.1.0"
 edition = "2021"
+description = "Luxafor-ui frontend"
+authors = ["Robin Kristiansen"]
 license = "MIT"
-license-file = "LICENSE"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-leptos = { version = "0.7.0", features = ["csr"] }
+leptos = { version = "0.7", features = ["csr"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
