@@ -42,7 +42,7 @@ Add the wasm32 build target
 rustup target add wasm32-unknown-unknown
 ```
 
-If on Apple silicon (M1 or up), install `tauri-cli` and `trunk` from cargo directly.
+If on Apple Silicon (M1 or up), install `tauri-cli` and `trunk` from cargo directly.
 ```bash
 cargo install --locked --version "^2.0" tauri-cli
 cargo install --locked --no-default-features --features update_check,rustls trunk
