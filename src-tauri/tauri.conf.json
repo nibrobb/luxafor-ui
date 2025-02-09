@@ -15,7 +15,9 @@
       {
         "title": "luxafor-ui",
         "width": 300,
-        "height": 600
+        "height": 600,
+        "center": true,
+        "resizable": false
       }
     ],
     "security": {
