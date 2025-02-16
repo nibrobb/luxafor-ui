@@ -1,0 +1,52 @@
+"$schema" = "https://schema.tauri.app/config/2"
+identifier = "no.nibrobb.luxafor-ui"
+
+[build]
+before-dev-command = "trunk serve"
+dev-url = "http://localhost:1420"
+before-build-command = "trunk build --release"
+frontend-dist = "../dist"
+
+[app]
+with-global-tauri = true
+
+[[app.windows]]
+title = "Luxafor-ui"
+width = 300
+height = 600
+center = true
+resizable = false
+
+[bundle]
+active = true
+targets = "all"
+category = "Utility"
+license = "MIT"
+copyright = "Robin Kristiansen (c) 2025"
+short-description = "A simple app to control your Luxafor Flag"
+long-description = "This application gives you a system tray icon/app-indicator to control the Luxafor Flag as well as a neat graphical user interface with assorted colors to chose from"
+icon = [
+  "icons/32x32.png",
+  "icons/128x128.png",
+  "icons/128x128@2x.png",
+  "icons/icon.icns",
+  "icons/icon.ico"
+]
+
+[bundle.linux.deb]
+depends = ["udev"]
+post-install-script = "scripts/reload-udev"
+post-remove-script = "scripts/reload-udev"
+provides = ["luxafor-ui"]
+changelog = "extra/changelog.gz"
+files = { "/etc/udev/rules.d/99-luxafor-ui.rules" = "extra/99-luxafor-ui.rules" }
+
+
+[bundle.linux.rpm]
+depends = ["udev"]
+epoch = 0
+release = "alpha"
+post-install-script = "scripts/reload-udev"
+post-remove-script = "scripts/reload-udev"
+provides = ["luxafor-ui"]
+files = { "/etc/udev/rules.d/99-luxafor-ui.rules" = "extra/99-luxafor-ui.rules" }
