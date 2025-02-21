@@ -65,6 +65,7 @@ pub fn run() {
                     } => {
                         if let Some(window) = tray.app_handle().get_webview_window("main") {
                             window.show().unwrap();
+                            window.unminimize().unwrap();
                             window.set_focus().unwrap();
                         }
                     }
