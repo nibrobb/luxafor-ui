@@ -23,3 +23,5 @@ tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 luxafor = { version = "0.3.0", default-features = false, features = ["usb"] }
+# clap = {version = "4.5.30", features = ["derive", "cargo", "env"] }
+# windows-sys = "0.59.0"

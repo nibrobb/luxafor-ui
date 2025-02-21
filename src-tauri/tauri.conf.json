@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "luxafor-ui",
+        "title": "Luxafor-ui",
         "width": 300,
         "height": 600,
         "center": true,
