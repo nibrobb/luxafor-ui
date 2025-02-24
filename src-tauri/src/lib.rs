@@ -42,9 +42,10 @@ pub fn run() {
                 .build();
             let about_i = PredefinedMenuItem::about(app, Some("About"), Some(aboutmeta))?;
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let luxafor_ui_i = MenuItem::with_id(app, "luxafor-ui", "Luxafor-ui", true, None::<&str>)?;
             let menu = Menu::with_items(
                 app,
-                &[&about_i, &PredefinedMenuItem::separator(app)?, &quit_i],
+                &[&luxafor_ui_i, &about_i, &PredefinedMenuItem::separator(app)?, &quit_i],
             )?;
             let _tray = TrayIconBuilder::new()
                 .menu(&menu)
@@ -52,6 +53,13 @@ pub fn run() {
                 .show_menu_on_left_click(true)
                 .icon(app.default_window_icon().unwrap().clone())
                 .on_menu_event(|app, event| match event.id.as_ref() {
+                    "luxafor-ui" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            window.show().unwrap();
+                            window.unminimize().unwrap();
+                            window.set_focus().unwrap();
+                        }
+                    },
                     "quit" => {
                         app.exit(0);
                     }
