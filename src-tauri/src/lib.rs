@@ -1,11 +1,14 @@
 use std::str::FromStr;
-use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
+use tauri::{
+    menu::{MenuBuilder, MenuItemBuilder},
+    tray::{MouseButton, MouseButtonState, TrayIconEvent},
+};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use luxafor::{usb_hid::USBDeviceDiscovery, Device, SolidColor};
 
 use tauri::{
-    menu::{AboutMetadataBuilder, Menu, MenuItem, PredefinedMenuItem},
+    menu::{AboutMetadataBuilder, PredefinedMenuItem},
     tray::TrayIconBuilder,
     Manager, WindowEvent,
 };
@@ -36,22 +39,29 @@ fn set_light_color(color: &str) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .setup(move |app| {
+            let handle = app.handle();
+
             let aboutmeta = AboutMetadataBuilder::new()
                 .authors(Some(vec![String::from("Robin Kristiansen")]))
-                .icon(Some(app.default_window_icon().unwrap().clone()))
+                .icon(Some(handle.default_window_icon().unwrap().clone()))
                 .build();
-            let about_i = PredefinedMenuItem::about(app, Some("About"), Some(aboutmeta))?;
-            let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let luxafor_ui_i = MenuItem::with_id(app, "luxafor-ui", "Luxafor-ui", true, None::<&str>)?;
-            let menu = Menu::with_items(
-                app,
-                &[&luxafor_ui_i, &about_i, &PredefinedMenuItem::separator(app)?, &quit_i],
-            )?;
+            let about_i = PredefinedMenuItem::about(handle, Some("About"), Some(aboutmeta))?;
+            let quit_i = MenuItemBuilder::with_id("quit", "Quit").build(handle)?;
+            let luxafor_ui_i =
+                MenuItemBuilder::with_id("luxafor-ui", "Luxafor-ui").build(handle)?;
+            let menu = MenuBuilder::new(handle)
+                .items(&[
+                    &luxafor_ui_i,
+                    &about_i,
+                    &PredefinedMenuItem::separator(handle)?,
+                    &quit_i,
+                ])
+                .build()?;
             let _tray = TrayIconBuilder::new()
                 .menu(&menu)
                 .tooltip("Luxafor-ui")
                 .show_menu_on_left_click(true)
-                .icon(app.default_window_icon().unwrap().clone())
+                .icon(handle.default_window_icon().unwrap().clone())
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "luxafor-ui" => {
                         if let Some(window) = app.get_webview_window("main") {
@@ -59,7 +69,7 @@ pub fn run() {
                             window.unminimize().unwrap();
                             window.set_focus().unwrap();
                         }
-                    },
+                    }
                     "quit" => {
                         app.exit(0);
                     }
@@ -79,7 +89,7 @@ pub fn run() {
                     }
                     _ => {}
                 })
-                .build(app)?;
+                .build(handle)?;
             Ok(())
         })
         .on_window_event(|window, event| {
