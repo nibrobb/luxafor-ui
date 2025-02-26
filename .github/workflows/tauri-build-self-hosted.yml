@@ -16,25 +16,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # I don't need node right?
-    #   - name: Setup node
-    #     uses: actions/setup-node@v4
-    #     with:
-    #       node-version: lts/*
-
-      - name: Install rust binaries
-        uses: moonrepo/setup-rust@v1.2.1
-        with:
-          bins: tauri-cli@2,trunk,wasm-bindgen-cli
-          cache-target: release
-          channel: stable
-          targets: wasm32-unknown-unknown
+      - name: Install cargo-binstall
+        run: cargo install cargo-binstall
+        
+      - name: Install binaries
+        run: cargo binstall tauri-cli@2 trunk wasm-bindgen-cli
+    
+      - name: Add wasm target
+        run: rustup target add wasm32-unknown-unknown
       
-      - name: Install dependencies (Ubuntu only)
-        if: matrix.platform == 'Ubuntu-24.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libudev-dev
+    #   - name: Install dependencies (Ubuntu only)
+    #     if: matrix.platform == 'Ubuntu-24.04'
+    #     run: |
+    #       sudo apt-get update
+    #       sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libudev-dev
         
       - uses: tauri-apps/tauri-action@v0
         env:
