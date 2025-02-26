@@ -11,8 +11,9 @@ jobs:
       fail-fast: false
       matrix:
         platform: ['Ubuntu-24.04', 'Windows-11']
+        runner: ['self-hosted']
     
-    runs-on: [self-hosted, ${{ matrix.platform }}]
+    runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
 
