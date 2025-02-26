@@ -1,7 +1,6 @@
 name: 'Build and publish bundles (self-hosted)'
 
-on:
-  workflow_dispatch:
+on: push
 
 jobs:
   publish-tauri:
