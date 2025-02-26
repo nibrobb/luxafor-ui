@@ -2,6 +2,15 @@ name: 'Build and publish bundles'
 
 on:
   workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Choose runner'
+        required: true
+        default: 'github'
+        type: choice
+        options:
+          - github
+          - self-hosted
 
 jobs:
   publish-tauri:
@@ -11,16 +20,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest' # for Arm based macs (M1 and above).
-            args: '--target aarch64-apple-darwin'
-          - platform: 'macos-latest' # for Intel based macs.
-            args: '--target x86_64-apple-darwin'
-          - platform: 'ubuntu-latest'
+          - platform: ubuntu-latest
             args: ''
-          - platform: 'windows-latest'
+          - include: windows-latest
             args: ''
+          # Disabled for the foreseeable future.
+          # - platform: 'macos-latest' # for Arm based macs (M1 and above).
+          #   args: '--target aarch64-apple-darwin'
+          # - platform: 'macos-latest' # for Intel based macs.
+          #   args: '--target x86_64-apple-darwin'
     
-    runs-on: ${{ matrix.platform }}
+    runs-on: ${{ inputs.runner == 'github' && matrix.platform || 'self-hosted' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -38,19 +48,19 @@ jobs:
           channel: stable
           targets: wasm32-unknown-unknown
       
-      - name: Setup Rust and Cargo (MacOS)
-        if: matrix.platform == 'macos-latest'
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown,aarch64-apple-darwin,x86_64-apple-darwin
+      # - name: Setup Rust and Cargo (MacOS)
+      #   if: matrix.platform == 'macos-latest'
+      #   uses: dtolnay/rust-toolchain@stable
+      #   with:
+      #     targets: wasm32-unknown-unknown,aarch64-apple-darwin,x86_64-apple-darwin
 
-      - name: Install Trunk-rs (MacOS)
-        if: matrix.platform == 'macos-latest'
-        run: cargo install trunk
+      # - name: Install Trunk-rs (MacOS)
+      #   if: matrix.platform == 'macos-latest'
+      #   run: cargo install trunk
 
-      - name: Install wasm-bindgen (MacOS)
-        if: matrix.platform == 'macos-latest'
-        run: cargo install wasm-bindgen-cli
+      # - name: Install wasm-bindgen (MacOS)
+      #   if: matrix.platform == 'macos-latest'
+      #   run: cargo install wasm-bindgen-cli
 
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
