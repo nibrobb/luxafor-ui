@@ -1,4 +1,4 @@
-name: 'Build and publish bundles'
+name: 'Build and publish bundles (Windows & Ubuntu)'
 
 on:
   workflow_dispatch:
@@ -11,14 +11,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest' # for Arm based macs (M1 and above).
-            args: '--target aarch64-apple-darwin'
-          - platform: 'macos-latest' # for Intel based macs.
-            args: '--target x86_64-apple-darwin'
           - platform: 'ubuntu-latest'
             args: ''
           - platform: 'windows-latest'
             args: ''
+          # - platform: 'macos-latest' # for Arm based macs (M1 and above).
+          #   args: '--target aarch64-apple-darwin'
+          # - platform: 'macos-latest' # for Intel based macs.
+          #   args: '--target x86_64-apple-darwin'
     
     runs-on: ${{ matrix.platform }}
     steps:
@@ -30,7 +30,7 @@ jobs:
           node-version: lts/*
 
       - name: Setup Rust and Cargo (Windows and Ubuntu)
-        if: matrix.platform != 'macos-latest'
+        # if: matrix.platform != 'macos-latest'
         uses: moonrepo/setup-rust@v1.2.1
         with:
           bins: tauri-cli@2,trunk,wasm-bindgen-cli
@@ -38,19 +38,19 @@ jobs:
           channel: stable
           targets: wasm32-unknown-unknown
       
-      - name: Setup Rust and Cargo (MacOS)
-        if: matrix.platform == 'macos-latest'
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown,aarch64-apple-darwin,x86_64-apple-darwin
+      # - name: Setup Rust and Cargo (MacOS)
+      #   if: matrix.platform == 'macos-latest'
+      #   uses: dtolnay/rust-toolchain@stable
+      #   with:
+      #     targets: wasm32-unknown-unknown,aarch64-apple-darwin,x86_64-apple-darwin
 
-      - name: Install Trunk-rs (MacOS)
-        if: matrix.platform == 'macos-latest'
-        run: cargo install trunk
+      # - name: Install Trunk-rs (MacOS)
+      #   if: matrix.platform == 'macos-latest'
+      #   run: cargo install trunk
 
-      - name: Install wasm-bindgen (MacOS)
-        if: matrix.platform == 'macos-latest'
-        run: cargo install wasm-bindgen-cli
+      # - name: Install wasm-bindgen (MacOS)
+      #   if: matrix.platform == 'macos-latest'
+      #   run: cargo install wasm-bindgen-cli
 
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
