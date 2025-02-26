@@ -1,0 +1,47 @@
+name: 'Build and publish bundles (self-hosted)'
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ['Ubuntu-24.04', 'Windows-11']
+    
+    runs-on: [self-hosted, ${{ matrix.platform }}]
+    steps:
+      - uses: actions/checkout@v4
+
+      # I don't need node right?
+    #   - name: Setup node
+    #     uses: actions/setup-node@v4
+    #     with:
+    #       node-version: lts/*
+
+      - name: Install rust binaries
+        uses: moonrepo/setup-rust@v1.2.1
+        with:
+          bins: tauri-cli@2,trunk,wasm-bindgen-cli
+          cache-target: release
+          channel: stable
+          targets: wasm32-unknown-unknown
+      
+      - name: Install dependencies (Ubuntu only)
+        if: matrix.platform == 'Ubuntu-24.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libudev-dev
+        
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
+          releaseName: 'v__VERSION__-alpha'
+          releaseBody: 'See the assets to download this version and install.'
+          releaseDraft: true
+          prerelease: true
