@@ -2,6 +2,20 @@ name: 'Build and publish bundles'
 
 on:
   workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Choose runner'
+        required: true
+        default: 'github'
+        type: choice
+        options:
+          - github
+          - self-hosted
+      include_macos:
+        description: 'Include macOS in the build matrix'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   publish-tauri:
@@ -11,13 +25,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest' # for Arm based macs (M1 and above).
+          - platform: ${{ inputs.runner == 'github' && inputs.include_macos == 'true' && 'macos-latest' || 'self-hosted' }}
             args: '--target aarch64-apple-darwin'
-          - platform: 'macos-latest' # for Intel based macs.
+          - platform: ${{ inputs.runner == 'github' && inputs.include_macos == 'true' && 'macos-latest' || 'self-hosted' }}
             args: '--target x86_64-apple-darwin'
-          - platform: 'ubuntu-latest'
+          - platform: ${{ inputs.runner == 'github' && 'ubuntu-latest' || 'self-hosted' }}
             args: ''
-          - platform: 'windows-latest'
+          - platform: ${{ inputs.runner == 'github' && 'windows-latest' || 'self-hosted' }}
             args: ''
     
     runs-on: ${{ matrix.platform }}
