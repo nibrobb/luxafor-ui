@@ -1,9 +1,12 @@
-name: 'Build and publish bundles (self-hosted)'
+name: 'Build and release (self-hosted)'
 
-on: push
+on:
+  push:
+    branches:
+      - tauri
 
 jobs:
-  publish-tauri:
+  build-tauri:
     permissions:
       contents: write
     strategy:
@@ -30,12 +33,6 @@ jobs:
       - name: Add wasm target
         run: rustup target add wasm32-unknown-unknown
       
-    #   - name: Install dependencies (Ubuntu only)
-    #     if: matrix.platform == 'Ubuntu-24.04'
-    #     run: |
-    #       sudo apt-get update
-    #       sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libudev-dev
-        
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
