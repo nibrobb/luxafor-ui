@@ -42,13 +42,16 @@ pub fn run() {
             let handle = app.handle();
 
             let aboutmeta = AboutMetadataBuilder::new()
+                .name(Some("Luxafor-ui"))
                 .authors(Some(vec![String::from("Robin Kristiansen")]))
+                .comments(Some("A simple app to control your Luxafor Flag"))
+                .copyright(Some("Luxafor-ui is not affiliated with, endorsed by, or associated with Luxafor. Luxafor is a registered trademark of GreyNut SIA."))
                 .icon(Some(handle.default_window_icon().unwrap().clone()))
                 .build();
             let about_i = PredefinedMenuItem::about(handle, Some("About"), Some(aboutmeta))?;
             let quit_i = MenuItemBuilder::with_id("quit", "Quit").build(handle)?;
             let luxafor_ui_i =
-                MenuItemBuilder::with_id("luxafor-ui", "Luxafor-ui").build(handle)?;
+                MenuItemBuilder::with_id("luxafor_ui", "Luxafor-ui").build(handle)?;
             let menu = MenuBuilder::new(handle)
                 .items(&[
                     &luxafor_ui_i,
@@ -63,7 +66,7 @@ pub fn run() {
                 .show_menu_on_left_click(true)
                 .icon(handle.default_window_icon().unwrap().clone())
                 .on_menu_event(|app, event| match event.id.as_ref() {
-                    "luxafor-ui" => {
+                    "luxafor_ui" => {
                         if let Some(window) = app.get_webview_window("main") {
                             window.show().unwrap();
                             window.unminimize().unwrap();
