@@ -1,9 +1,11 @@
 name: 'Build and release (self-hosted)'
 
 on:
-  push:
-    branches:
-      - tauri
+  workflow_dispatch:
+# on:
+#   push:
+#     branches:
+#       - tauri
 
 jobs:
   build-tauri:
