@@ -144,7 +144,7 @@ button[data-color]:hover,
 button[data-color]:active {
   border-color:     var(--btn-color);
   background-color: var(--btn-color);
-  box-shadow:       0 5px 15px var(--btn-color);
+  box-shadow:       0 0 20px 5px var(--btn-color);
   color:            var(--btn-text-hover);
 }
 
