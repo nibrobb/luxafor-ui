@@ -5,6 +5,9 @@ edition = "2021"
 description = "Luxafor-ui"
 authors = ["Robin Kristiansen"]
 
+[features]
+slack_oauth = []
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
@@ -20,6 +23,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-shell = "2"
+tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 luxafor = { version = "0.3.0", default-features = false, features = ["usb"] }
@@ -31,5 +35,6 @@ hyper = { version = "1.6.0", features = ["full"] }
 http-body-util = "0.1.2"
 hyper-util = "0.1.10"
 rvstruct = "0.3.2"
+tauri-plugin-store = "2"
 # clap = {version = "4.5.30", features = ["derive", "cargo", "env"] }
 # windows-sys = "0.59.0"
