@@ -9,21 +9,40 @@ use tauri::{
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use luxafor::{usb_hid::USBDeviceDiscovery, Device, SolidColor};
-
 use tauri::{
     menu::{AboutMetadataBuilder, PredefinedMenuItem},
     tray::TrayIconBuilder,
     Manager, WindowEvent,
 };
-use tracing::{debug, error};
+
+use tauri_plugin_store::StoreExt;
+use tracing::debug;
+
+#[cfg(feature = "slack_oauth")]
+use tauri_plugin_opener::open_url;
+
+mod slack_api;
 
 #[tauri::command]
-fn set_light_color(color: &str) -> Result<(), String> {
+async fn call_api(color: &str) -> Result<(), String> {
+    // But not here...
+    let color = color.to_string();
+    tokio::task::spawn_local(async move {
+        slack_api::send_status(color)
+            .await
+            .map_err(|e| e.to_string())
+    });
+    // slack_api::send_status(color.to_string()).await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_light_color(color: &str) -> Result<(), String> {
     let discovery = USBDeviceDiscovery::new().map_err(|e| e.to_string())?;
     let device = discovery.device().map_err(|e| e.to_string())?;
 
     let s = color.to_lowercase();
-    let result = match s.as_str() {
+    match s.as_str() {
         "off" => device.turn_off().map_err(|e| e.to_string()),
         _ => {
             if let Ok(parsed_color) = SolidColor::from_str(&s) {
@@ -31,75 +50,51 @@ fn set_light_color(color: &str) -> Result<(), String> {
                     .set_solid_color(parsed_color)
                     .map_err(|e| e.to_string())
             } else {
-                return Err(String::from("Invalid color"));
+                Err(String::from("Invalid color"))
             }
         }
-    };
-
-    result
+    }
 }
-
-mod slack_api;
 
 #[derive(Clone, Debug)]
 pub struct Tokens {
-    pub bot_token: Arc<Mutex<String>>,
-    pub user_token: Arc<Mutex<String>>,
-    pub counter: Arc<Mutex<i32>>,
-}
-
-#[tauri::command]
-fn read_write_tokens(tokens_arc: tauri::State<Arc<Mutex<Tokens>>>) -> String {
-    // simulate 10 threads
-    for _ in 0..10 {
-        let my_tokens_arc_clone = Arc::clone(&tokens_arc); // Clone arc to every thread, and share tokens_arc
-        tauri::async_runtime::spawn(async move {
-            let mut tokens = my_tokens_arc_clone.lock().unwrap();
-            tokens.bot_token = Arc::new(Mutex::new("the BOT token goes here".into()));
-            tokens.user_token = Arc::new(Mutex::new("the USER token goes here".into()));
-            tokens.counter = Arc::new(Mutex::new(69));
-        });
-    }
-
-    let tokens = tokens_arc.lock().unwrap();
-
-    format!(
-        "Tokens are:\nBOT:\t{}\nUSER:\t{}\n\nCounter:\t{}",
-        tokens.bot_token.lock().unwrap(),
-        tokens.user_token.lock().unwrap(),
-        tokens.counter.lock().unwrap()
-    )
+    pub bot_token: Option<String>,
+    pub user_token: Option<String>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tauri::Builder::default()
-        .manage(Tokens {
-            bot_token: Arc::new(Mutex::new("BOT TOKEN".into())),
-            user_token: Arc::new(Mutex::new("USER TOKEN".into())),
-            counter: Arc::new(Mutex::new(0)),
-        })
+        .plugin(tauri_plugin_store::Builder::new().build())
         .setup(move |app| {
-            let my_tokens = Arc::new(Mutex::new(
-                Tokens {
-                    bot_token: Arc::new(Mutex::new("BOT TOKEN".into())),
-                    user_token: Arc::new(Mutex::new("USER TOKEN".into())),
-                    counter: Arc::new(Mutex::new(0)),
-                }
-            ));
-            app.manage(my_tokens);
+            debug!("Setting up application");
 
-            tauri::async_runtime::spawn(async move {
-                match slack_api::setup_oauth().await {
-                    Ok(()) => (),
-                    Err(e) => {
-                        error!("{}", e);
-                        ()
-                    }
+            // Shit works here...
+            tauri::async_runtime::spawn(async { slack_api::send_status("yellow".to_string()).await.expect("What the fuck"); });
+
+            app.manage(Arc::new(Mutex::new(Tokens {
+                bot_token: Some("BOT TOKEN".into()),
+                user_token: Some("USER TOKEN".into()),
+            })));
+
+            // `Tokens` is already managed, so `manage()` returns false
+            assert!(!app.manage(Arc::new(Mutex::new(Tokens {
+                bot_token: Some("BOT TOKEN".into()),
+                user_token: Some("USER TOKEN".into()),
+            }))));
+            let store = app.store("store.json")?;
+            if let Some(bot_token) = store.get("bot_token") {
+                if let Some(user_token) = store.get("user_token") {
+                    app.state::<Arc<Mutex<Tokens>>>().lock().unwrap().bot_token = Some(bot_token.to_string());
+                    app.state::<Arc<Mutex<Tokens>>>().lock().unwrap().user_token = Some(user_token.to_string());
                 }
-            });
+            }
 
             let handle = app.handle();
+            #[cfg(feature = "slack_oauth")]
+            tauri::async_runtime::spawn(async {
+                slack_api::setup_oauth().await.expect("Failed to setup oauth");
+            });
 
             let aboutmeta = AboutMetadataBuilder::new()
                 .name(Some("Luxafor-ui"))
@@ -116,6 +111,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             let luxafor_ui_i =
                 MenuItemBuilder::with_id("luxafor_ui", "Luxafor-ui").build(handle)?;
 
+            #[cfg(feature = "slack_oauth")]
             let add_to_slack_i =
                 MenuItemBuilder::with_id("add_to_slack", "Add to Slack").build(handle)?;
 
@@ -123,7 +119,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .items(&[
                     &luxafor_ui_i,
                     &about_i,
+                    #[cfg(feature = "slack_oauth")]
                     &PredefinedMenuItem::separator(handle)?,
+                    #[cfg(feature = "slack_oauth")]
                     &add_to_slack_i,
                     &PredefinedMenuItem::separator(handle)?,
                     &quit_i,
@@ -142,9 +140,14 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                             window.set_focus().unwrap();
                         }
                     }
+                    #[cfg(feature = "slack_oauth")]
                     "add_to_slack" => {
-                        // Open a web browser and navigate to http://localhost:8080/auth/install
-                        debug!("Add to Slack pressed: {}", read_write_tokens(app.state()));
+                        debug!("Add to Slack pressed");
+
+                        open_url(slack_api::INSTALL_URL, None::<&str>).unwrap();
+                        let state = app.state::<Arc<Mutex<Tokens>>>().lock().unwrap().clone();
+                        if let Some(ref token) = state.bot_token { debug!("BOT TOKEN:\t{}", token); }
+                        if let Some(ref token) = state.user_token { debug!("USER TOKEN:\t{}", token); }
                     }
                     "quit" => {
                         app.exit(0);
@@ -152,6 +155,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| match event {
+                    TrayIconEvent::DoubleClick {
+                        button: MouseButton::Left,
+                        ..
+                    } |
                     TrayIconEvent::Click {
                         button: MouseButton::Left,
                         button_state: MouseButtonState::Up,
@@ -166,23 +173,24 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     _ => {}
                 })
                 .build(handle)?;
+
+            store.close_resource();
+
             Ok(())
         })
         .on_window_event(|window, event| {
             if let Some(main_window) = window.app_handle().get_webview_window("main") {
-                match event {
-                    WindowEvent::CloseRequested { api, .. } => {
-                        api.prevent_close();
-                        main_window.hide().unwrap();
-                    }
-                    _ => {}
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    main_window.hide().unwrap();
                 }
             }
         })
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             set_light_color,
-            read_write_tokens,
+            call_api,
         ])
         .run(tauri::generate_context!())?;
 
