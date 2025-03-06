@@ -10,15 +10,17 @@ use slack_morphism::prelude::*;
 use std::convert::Infallible;
 use std::sync::Arc;
 use tokio::net::TcpListener;
-use tracing::info;
-use tracing::log::debug;
+use tracing::{debug, error, warn};
 
+#[cfg(feature = "slack_oauth")]
 pub const INSTALL_URL: &str = "http://localhost:8080/auth/install";
 
+#[allow(unused)]
 pub fn config_env_var(name: &str) -> Result<String, String> {
     std::env::var(name).map_err(|e| format!("{}: {}", name, e))
 }
 
+#[cfg(feature = "slack_oauth")]
 /// OAuth 2.0 flow for "Add to Slack"
 /// To use "Add to Slack" the redirect URI in the Slack app must be an HTTPS URL
 /// https://api.slack.com/authentication/oauth-v2
@@ -29,7 +31,7 @@ pub async fn setup_oauth() -> Result<(), Box<dyn std::error::Error + Send + Sync
         _client: Arc<SlackHyperClient>,
         _states: SlackClientEventsUserState,
     ) -> HttpStatusCode {
-        println!("{:#?}", err);
+        debug!("{:#?}", err);
         // Defines what we return Slack server
         HttpStatusCode::BAD_REQUEST
     }
@@ -45,7 +47,7 @@ pub async fn setup_oauth() -> Result<(), Box<dyn std::error::Error + Send + Sync
             debug!("User access token\t{}", user_token.value());
         };
 
-        println!("{:#?}", resp);
+        debug!("{:#?}", resp);
         use std::io::Write;
         let mut file = std::fs::File::create("store.json").expect("create 'store.json' failed");
         use serde_json::json;
@@ -63,7 +65,7 @@ pub async fn setup_oauth() -> Result<(), Box<dyn std::error::Error + Send + Sync
         _client: Arc<SlackHyperClient>,
         _states: SlackClientEventsUserState,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        println!("{:#?}", event);
+        debug!("{:#?}", event);
         Ok(())
     }
 
@@ -72,7 +74,7 @@ pub async fn setup_oauth() -> Result<(), Box<dyn std::error::Error + Send + Sync
         _client: Arc<SlackHyperClient>,
         _states: SlackClientEventsUserState,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        println!("{:#?}", event);
+        debug!("{:#?}", event);
         Ok(())
     }
 
@@ -89,7 +91,7 @@ pub async fn setup_oauth() -> Result<(), Box<dyn std::error::Error + Send + Sync
             .api_test(&SlackApiTestRequest::new().with_foo("Test".into()))
             .await?;
 
-        println!("{:#?}", event);
+        debug!("{:#?}", event);
         Ok(SlackCommandEventResponse::new(
             SlackMessageContent::new().with_text("Working on it".into()),
         ))
@@ -143,7 +145,7 @@ pub async fn setup_oauth() -> Result<(), Box<dyn std::error::Error + Send + Sync
 
     let listener = TcpListener::bind(&addr).await?;
 
-    info!("Server is listening on http://{}", &addr);
+    debug!("Server is listening on http://{}", &addr);
 
     loop {
         let (tcp, _) = listener.accept().await?;
@@ -179,23 +181,36 @@ pub async fn setup_oauth() -> Result<(), Box<dyn std::error::Error + Send + Sync
                 .serve_connection(io, service_fn(routes))
                 .await
             {
-                eprintln!("Error serving connection: {:?}", err);
+                error!("Error serving connection: {:?}", err);
             }
         });
     }
 }
 
-pub async fn send_status(
+#[tracing::instrument]
+pub async fn status_set(
     color: String, /* luxafor::SolidColor */
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Read `user_token` from `store.json` file, then use that with Slack's `users.profile.set` API to set some status
     let file = std::fs::File::open("store.json")?;
     let reader = std::io::BufReader::new(file);
-    let data: serde_json::Value = serde_json::from_reader(reader)?;
-    let user_token: String = data["user_token"]
-        .as_str()
-        .expect("user_token not found in store.json")
-        .to_string();
+    let data: serde_json::Value = match serde_json::from_reader(reader) {
+        Ok(v) => v,
+        Err(e) => {
+            warn!("Error reading store.json: {}", e);
+            return Err(Box::new(e));
+        }
+    };
+    let user_token: String = match data["user_token"].as_str() {
+        Some(v) => v.to_string(),
+        None => {
+            warn!("user_token not found in store.json");
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "user_token not found in store.json",
+            )));
+        }
+    };
     debug!("User token: {}", user_token);
 
     let client = SlackClient::new(SlackClientHyperConnector::new()?);
@@ -211,7 +226,7 @@ pub async fn send_status(
                         .with_status_emoji(":slack:".into())
                         .with_status_text("Slacking".into()),
                     _ => {
-                        debug!("Unknown color: {}", color_clone);
+                        warn!("Unknown color: {}", color_clone);
                         SlackUserProfile::new()
                             .with_status_emoji("".into())
                             .with_status_text("".into())

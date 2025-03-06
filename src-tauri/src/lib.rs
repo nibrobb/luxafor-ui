@@ -16,7 +16,7 @@ use tauri::{
 };
 
 use tauri_plugin_store::StoreExt;
-use tracing::debug;
+use tracing::{debug, info};
 
 #[cfg(feature = "slack_oauth")]
 use tauri_plugin_opener::open_url;
@@ -24,28 +24,25 @@ use tauri_plugin_opener::open_url;
 mod slack_api;
 
 #[tauri::command]
-async fn call_api(color: &str) -> Result<(), String> {
-    // But not here...
-    let color = color.to_string();
-    tokio::task::spawn_local(async move {
-        slack_api::send_status(color)
-            .await
-            .map_err(|e| e.to_string())
-    });
-    // slack_api::send_status(color.to_string()).await.map_err(|e| e.to_string())?;
-    Ok(())
+async fn call_api_status_set(color: &str) -> Result<(), String> {
+    let color = color.to_lowercase();
+    debug!("call_api_status_set called");
+    match tauri::async_runtime::spawn(async move { slack_api::status_set(color).await }).await {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 #[tauri::command]
 async fn set_light_color(color: &str) -> Result<(), String> {
     let discovery = USBDeviceDiscovery::new().map_err(|e| e.to_string())?;
     let device = discovery.device().map_err(|e| e.to_string())?;
-
+    debug!("set_light_color called");
     let s = color.to_lowercase();
     match s.as_str() {
         "off" => device.turn_off().map_err(|e| e.to_string()),
         _ => {
-            if let Ok(parsed_color) = SolidColor::from_str(&s) {
+            if let Ok(parsed_color) = SolidColor::from_str(s.as_str()) {
                 device
                     .set_solid_color(parsed_color)
                     .map_err(|e| e.to_string())
@@ -57,9 +54,9 @@ async fn set_light_color(color: &str) -> Result<(), String> {
 }
 
 #[derive(Clone, Debug)]
-pub struct Tokens {
-    pub bot_token: Option<String>,
-    pub user_token: Option<String>,
+pub struct GlobalState {
+    bot_token: Option<String>,
+    user_token: Option<String>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -67,26 +64,23 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
         .setup(move |app| {
-            debug!("Setting up application");
+            info!("Starting Luxafor-ui");
 
-            // Shit works here...
-            tauri::async_runtime::spawn(async { slack_api::send_status("yellow".to_string()).await.expect("What the fuck"); });
-
-            app.manage(Arc::new(Mutex::new(Tokens {
+            app.manage(Arc::new(Mutex::new(GlobalState {
                 bot_token: Some("BOT TOKEN".into()),
                 user_token: Some("USER TOKEN".into()),
             })));
 
             // `Tokens` is already managed, so `manage()` returns false
-            assert!(!app.manage(Arc::new(Mutex::new(Tokens {
+            assert!(!app.manage(Arc::new(Mutex::new(GlobalState {
                 bot_token: Some("BOT TOKEN".into()),
                 user_token: Some("USER TOKEN".into()),
             }))));
             let store = app.store("store.json")?;
             if let Some(bot_token) = store.get("bot_token") {
                 if let Some(user_token) = store.get("user_token") {
-                    app.state::<Arc<Mutex<Tokens>>>().lock().unwrap().bot_token = Some(bot_token.to_string());
-                    app.state::<Arc<Mutex<Tokens>>>().lock().unwrap().user_token = Some(user_token.to_string());
+                    app.state::<Arc<Mutex<GlobalState>>>().lock().unwrap().bot_token = Some(bot_token.to_string());
+                    app.state::<Arc<Mutex<GlobalState>>>().lock().unwrap().user_token = Some(user_token.to_string());
                 }
             }
 
@@ -143,9 +137,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     #[cfg(feature = "slack_oauth")]
                     "add_to_slack" => {
                         debug!("Add to Slack pressed");
-
                         open_url(slack_api::INSTALL_URL, None::<&str>).unwrap();
-                        let state = app.state::<Arc<Mutex<Tokens>>>().lock().unwrap().clone();
+                        let state = app.state::<Arc<Mutex<GlobalState>>>().lock().unwrap().clone();
                         if let Some(ref token) = state.bot_token { debug!("BOT TOKEN:\t{}", token); }
                         if let Some(ref token) = state.user_token { debug!("USER TOKEN:\t{}", token); }
                     }
@@ -190,7 +183,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             set_light_color,
-            call_api,
+            call_api_status_set,
         ])
         .run(tauri::generate_context!())?;
 
