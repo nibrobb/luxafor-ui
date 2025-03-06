@@ -22,7 +22,13 @@ fn ColorButton(color: &'static str) -> impl IntoView {
         let color2 = color1.to_string();
         spawn_local(async move {
             let args = serde_wasm_bindgen::to_value(&ColorArgs { color: &color2 }).unwrap();
-            invoke("set_light_color", args).await;
+            invoke("set_light_color", args.clone()).await;
+        });
+        // Stupid that I need to `spawn_local` twice, but it works...
+        let color3 = color1.to_string();
+        spawn_local(async move {
+            let args = serde_wasm_bindgen::to_value(&ColorArgs { color: &color3 }).unwrap();
+            invoke("call_api_status_set", args).await;
         });
     };
     view! {
