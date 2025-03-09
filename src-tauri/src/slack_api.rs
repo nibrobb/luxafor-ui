@@ -1,16 +1,18 @@
-use http_body_util::combinators::BoxBody;
-use http_body_util::BodyExt;
-use http_body_util::Full;
-use hyper::body::{Bytes, Incoming};
-use hyper::service::service_fn;
-use hyper::{Request, Response};
-use hyper_util::rt::TokioIo;
-use rvstruct::ValueStruct;
-use slack_morphism::prelude::*;
-use std::convert::Infallible;
-use std::sync::Arc;
-use tokio::net::TcpListener;
+#[cfg(feature = "slack_oauth")]
+use {http_body_util::combinators::BoxBody,
+     http_body_util::BodyExt,
+     http_body_util::Full,
+     hyper::body::{Bytes, Incoming},
+     hyper::service::service_fn,
+     hyper::{Request, Response},
+     hyper_util::rt::TokioIo,
+     std::convert::Infallible,
+     tokio::net::TcpListener,
+     rvstruct::ValueStruct,
+};
+
 use tracing::{debug, error, warn};
+use slack_morphism::prelude::*;
 
 #[cfg(feature = "slack_oauth")]
 pub const INSTALL_URL: &str = "http://localhost:8080/auth/install";
@@ -20,6 +22,7 @@ pub fn config_env_var(name: &str) -> Result<String, String> {
     std::env::var(name).map_err(|e| format!("{}: {}", name, e))
 }
 
+//noinspection HttpUrlsUsage
 #[cfg(feature = "slack_oauth")]
 /// OAuth 2.0 flow for "Add to Slack"
 /// To use "Add to Slack" the redirect URI in the Slack app must be an HTTPS URL
@@ -187,10 +190,12 @@ pub async fn setup_oauth() -> Result<(), Box<dyn std::error::Error + Send + Sync
     }
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn status_set(
-    color: String, /* luxafor::SolidColor */
+    profile: SlackUserProfile,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    debug!("status_text: {:?}, status_emoji: {:?}", profile.status_text, profile.status_emoji);
+    
     // Read `user_token` from `store.json` file, then use that with Slack's `users.profile.set` API to set some status
     let file = std::fs::File::open("store.json")?;
     let reader = std::io::BufReader::new(file);
@@ -211,34 +216,22 @@ pub async fn status_set(
             )));
         }
     };
-    debug!("User token: {}", user_token);
 
     let client = SlackClient::new(SlackClientHyperConnector::new()?);
     let token = SlackApiToken::new(SlackApiTokenValue::new(user_token));
 
-    client
+    match client
         .run_in_session(&token, |session| {
-            let color_clone = color.clone();
+            let profile_clone = profile.clone();
             async move {
-                let profile: SlackUserProfile = match color_clone.as_str() {
-                    // TODO: use enum or something to match colors
-                    "yellow" => SlackUserProfile::new()
-                        .with_status_emoji(":slack:".into())
-                        .with_status_text("Slacking".into()),
-                    _ => {
-                        warn!("Unknown color: {}", color_clone);
-                        SlackUserProfile::new()
-                            .with_status_emoji("".into())
-                            .with_status_text("".into())
-                    }
-                };
-                let status_request = SlackApiUsersProfileSetRequest::new(profile);
+                let status_request = SlackApiUsersProfileSetRequest::new(profile_clone);
                 session.users_profile_set(&status_request).await
-                // debug!("{:#?}", response);
-                // response
             }
-        })
-        .await?;
-
-    Ok(())
+        }).await {
+        Ok(_something) => Ok(()),
+        Err(e) => {
+            error!("Error setting status: {:#?}", e);
+            Err(Box::new(e))
+        }
+    }
 }

@@ -94,7 +94,7 @@ button {
   font-weight:      500;
   font-family:      inherit;
   width:            100%;
-  --btn-width:      150px;
+  --btn-width:      120px;
   max-width:        var(--btn-width);
   min-width:        var(--btn-width);
   padding:          0.6em 1.2em;

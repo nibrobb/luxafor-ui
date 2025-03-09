@@ -11,32 +11,35 @@ extern "C" {
     async fn invoke(cmd: &str, args: JsValue) -> JsValue;
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize, Serialize)]
 struct ColorArgs<'a> {
     color: &'a str,
 }
 
+async fn invoke_set_color(color: String) {
+    let color1 = color.to_owned();
+    let args = serde_wasm_bindgen::to_value(&ColorArgs { color: &color1 }).unwrap();
+    spawn_local(async move {
+        invoke("set_light_color", args.clone()).await;
+    });
+}
+
+
 #[component]
 fn ColorButton(color: &'static str) -> impl IntoView {
-    let change_color = move |color1: &str| {
-        let color2 = color1.to_string();
-        spawn_local(async move {
-            let args = serde_wasm_bindgen::to_value(&ColorArgs { color: &color2 }).unwrap();
-            invoke("set_light_color", args.clone()).await;
-        });
-        // Stupid that I need to `spawn_local` twice, but it works...
-        let color3 = color1.to_string();
-        spawn_local(async move {
-            let args = serde_wasm_bindgen::to_value(&ColorArgs { color: &color3 }).unwrap();
-            invoke("call_api_status_set", args).await;
-        });
-    };
+    let change_color_action = Action::new(|input: &String| {
+        invoke_set_color(input.clone())
+    });
+
     view! {
-        <button data-color={color} on:click=move |_| change_color(color)>
+        <button data-color={color} on:click=move |_| {
+            change_color_action.dispatch(color.to_owned());
+        } >
             {color}
         </button>
     }
 }
+
 
 #[component]
 pub fn App() -> impl IntoView {
