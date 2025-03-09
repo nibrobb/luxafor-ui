@@ -42,14 +42,6 @@ fn ColorButton(color: &'static str) -> impl IntoView {
 pub fn App() -> impl IntoView {
     view! {
         <main class="container">
-            <div id="logo-row">
-                <a href="https://tauri.app" target="_blank">
-                    <img width="60" src="public/tauri.svg" class="logo tauri" alt="Tauri logo"/>
-                </a>
-                <a href="https://docs.rs/leptos/" target="_blank">
-                    <img width="75" src="public/leptos.svg" class="logo leptos" alt="Leptos logo"/>
-                </a>
-            </div>
             <ColorButton color="Red"/>
             <ColorButton color="Green"/>
             <ColorButton color="Blue"/>

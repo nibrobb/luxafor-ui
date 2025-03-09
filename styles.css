@@ -72,25 +72,6 @@ html, body {
   padding:         0 var(--container-side-padding); /* Add inner spacing */
 }
 
-.logo {
-  height:      6em;
-  will-change: filter;
-  transition:  0.75s;
-}
-
-.logo.leptos:hover {
-  filter: drop-shadow(0 0 2em #a82e20);
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-#logo-row {
-  display:         flex;
-  justify-content: center;
-}
-
 a {
   font-weight:     500;
   color:           var(--primary-color);
