@@ -22,18 +22,38 @@ use tracing::{debug, info};
 use tauri_plugin_opener::open_url;
 
 mod slack_api;
+use slack_morphism::SlackUserProfile;
 
-#[tauri::command]
-async fn call_api_status_set(color: &str) -> Result<(), String> {
-    let color = color.to_lowercase();
-    debug!("call_api_status_set called");
-    match tauri::async_runtime::spawn(async move { slack_api::status_set(color).await }).await {
+#[tracing::instrument]
+fn color_to_profile(color: &luxafor::SolidColor) -> SlackUserProfile {
+    /* TODO: Use some centralized map e.g., the file "store.json", to store user-defined mappings
+        between color and status, and vice versa */
+    match color {
+        SolidColor::Red => SlackUserProfile::new().with_status_text("Opptatt".into()).with_status_emoji(":no_entry:".into()),
+        SolidColor::Green => SlackUserProfile::new().with_status_text("".into()).with_status_emoji("".into()),
+        SolidColor::Blue => SlackUserProfile::new().with_status_text("I\'m blue, baby!".into()).with_status_emoji(":blueberries:".into()),
+        SolidColor::Cyan => SlackUserProfile::new().with_status_text("".into()).with_status_emoji(":raccoon:".into()),
+        // TODO: Add all colors
+        _ => SlackUserProfile::new().with_status_text("".into()).with_status_emoji("".into())
+    }
+}
+
+
+// TODO: Implement this
+// fn profile_to_color(profile: &SlackUserProfile) -> SolidColor { ... }
+
+
+#[tracing::instrument(skip_all)]
+async fn call_api(profile: SlackUserProfile) -> Result<(), String> {
+    match tauri::async_runtime::spawn(async move { slack_api::status_set(profile).await }).await {
         Ok(_) => Ok(()),
         Err(e) => Err(e.to_string()),
     }
 }
 
+
 #[tauri::command]
+#[tracing::instrument]
 async fn set_light_color(color: &str) -> Result<(), String> {
     let discovery = USBDeviceDiscovery::new().map_err(|e| e.to_string())?;
     let device = discovery.device().map_err(|e| e.to_string())?;
@@ -43,6 +63,8 @@ async fn set_light_color(color: &str) -> Result<(), String> {
         "off" => device.turn_off().map_err(|e| e.to_string()),
         _ => {
             if let Ok(parsed_color) = SolidColor::from_str(s.as_str()) {
+                let profile = color_to_profile(&parsed_color);
+                call_api(profile).await?;
                 device
                     .set_solid_color(parsed_color)
                     .map_err(|e| e.to_string())
@@ -53,11 +75,13 @@ async fn set_light_color(color: &str) -> Result<(), String> {
     }
 }
 
+
 #[derive(Clone, Debug)]
 pub struct GlobalState {
     bot_token: Option<String>,
     user_token: Option<String>,
 }
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -166,9 +190,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     _ => {}
                 })
                 .build(handle)?;
-
             store.close_resource();
-
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -183,7 +205,6 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             set_light_color,
-            call_api_status_set,
         ])
         .run(tauri::generate_context!())?;
 
