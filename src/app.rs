@@ -26,13 +26,23 @@ async fn invoke_set_color(color: String) {
 
 
 #[component]
-fn ColorButton(color: &'static str) -> impl IntoView {
-    let change_color_action = Action::new(|input: &String| {
+fn ColorButton(color: &'static str, selected_color: RwSignal<Option<String>>) -> impl IntoView {
+    let change_color_action = Action::new(move |input: &String| {
+        selected_color.set(Some(input.clone()));
         invoke_set_color(input.clone())
     });
 
     view! {
-        <button data-color={color} on:click=move |_| {
+        <button
+        data-color={color}
+        class=move || {
+            if selected_color.get().as_ref().is_some_and(|c| c == color) {
+                format!("selected {}", color.to_lowercase())
+            } else {
+                "".to_string()
+            }
+        }
+        on:click=move |_| {
             change_color_action.dispatch(color.to_owned());
         } >
             {color}
@@ -43,16 +53,17 @@ fn ColorButton(color: &'static str) -> impl IntoView {
 
 #[component]
 pub fn App() -> impl IntoView {
+    let selected_color = RwSignal::new(None::<String>);
     view! {
         <main class="container">
-            <ColorButton color="Red"/>
-            <ColorButton color="Green"/>
-            <ColorButton color="Blue"/>
-            <ColorButton color="Yellow"/>
-            <ColorButton color="Cyan"/>
-            <ColorButton color="Magenta"/>
-            <ColorButton color="White"/>
-            <ColorButton color="Off"/>
+            <ColorButton color="Red" selected_color=selected_color/>
+            <ColorButton color="Green" selected_color=selected_color/>
+            <ColorButton color="Blue" selected_color=selected_color/>
+            <ColorButton color="Yellow" selected_color=selected_color/>
+            <ColorButton color="Cyan" selected_color=selected_color/>
+            <ColorButton color="Magenta" selected_color=selected_color/>
+            <ColorButton color="White" selected_color=selected_color/>
+            <ColorButton color="Off" selected_color=selected_color/>
         </main>
     }
 }
