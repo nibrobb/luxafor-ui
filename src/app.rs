@@ -24,7 +24,6 @@ async fn invoke_set_color(color: String) {
     });
 }
 
-
 #[component]
 fn ColorButton(color: &'static str, selected_color: RwSignal<Option<String>>) -> impl IntoView {
     let change_color_action = Action::new(move |input: &String| {
@@ -49,7 +48,6 @@ fn ColorButton(color: &'static str, selected_color: RwSignal<Option<String>>) ->
         </button>
     }
 }
-
 
 #[component]
 pub fn App() -> impl IntoView {
