@@ -1,18 +1,19 @@
 #[cfg(feature = "slack_oauth")]
-use {http_body_util::combinators::BoxBody,
-     http_body_util::BodyExt,
-     http_body_util::Full,
-     hyper::body::{Bytes, Incoming},
-     hyper::service::service_fn,
-     hyper::{Request, Response},
-     hyper_util::rt::TokioIo,
-     std::convert::Infallible,
-     tokio::net::TcpListener,
-     rvstruct::ValueStruct,
+use {
+    http_body_util::combinators::BoxBody,
+    http_body_util::BodyExt,
+    http_body_util::Full,
+    hyper::body::{Bytes, Incoming},
+    hyper::service::service_fn,
+    hyper::{Request, Response},
+    hyper_util::rt::TokioIo,
+    rvstruct::ValueStruct,
+    std::convert::Infallible,
+    tokio::net::TcpListener,
 };
 
-use tracing::{debug, error, warn};
 use slack_morphism::prelude::*;
+use tracing::{debug, error};
 
 #[cfg(feature = "slack_oauth")]
 pub const INSTALL_URL: &str = "http://localhost:8080/auth/install";
@@ -193,41 +194,53 @@ pub async fn setup_oauth() -> Result<(), Box<dyn std::error::Error + Send + Sync
 #[tracing::instrument(skip_all)]
 pub async fn status_set(
     profile: SlackUserProfile,
+    user_token: SlackApiToken,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    debug!("status_text: {:?}, status_emoji: {:?}", profile.status_text, profile.status_emoji);
-    
+    debug!(
+        "status_text: {:?}, status_emoji: {:?}",
+        profile.status_text, profile.status_emoji
+    );
+
     // Read `user_token` from `store.json` file, then use that with Slack's `users.profile.set` API to set some status
-    let file = std::fs::File::open("store.json")?;
-    let reader = std::io::BufReader::new(file);
-    let data: serde_json::Value = match serde_json::from_reader(reader) {
-        Ok(v) => v,
-        Err(e) => {
-            warn!("Error reading store.json: {}", e);
-            return Err(Box::new(e));
-        }
-    };
-    let user_token: String = match data["user_token"].as_str() {
-        Some(v) => v.to_string(),
-        None => {
-            warn!("user_token not found in store.json");
-            return Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "user_token not found in store.json",
-            )));
-        }
-    };
+    // let file = match std::fs::File::open("store.json") {
+    //     Ok(file) => file,
+    //     Err(e) => {
+    //         error!("store.json not found");
+    //         return Err(Box::new(e))
+    //     }
+    // };
+    // let reader = std::io::BufReader::new(file);
+    // let data: serde_json::Value = match serde_json::from_reader(reader) {
+    //     Ok(v) => v,
+    //     Err(e) => {
+    //         warn!("Error reading store.json: {}", e);
+    //         return Err(Box::new(e));
+    //     }
+    // };
+    // let user_token: String = match data["user_token"].as_str() {
+    //     Some(v) => v.to_string(),
+    //     None => {
+    //         warn!("user_token not found in store.json");
+    //         return Err(Box::new(std::io::Error::new(
+    //             std::io::ErrorKind::NotFound,
+    //             "user_token not found in store.json",
+    //         )));
+    //     }
+    // };
 
     let client = SlackClient::new(SlackClientHyperConnector::new()?);
-    let token = SlackApiToken::new(SlackApiTokenValue::new(user_token));
+    // let token = SlackApiToken::new(SlackApiTokenValue::new(user_token));
 
     match client
-        .run_in_session(&token, |session| {
+        .run_in_session(&user_token, |session| {
             let profile_clone = profile.clone();
             async move {
                 let status_request = SlackApiUsersProfileSetRequest::new(profile_clone);
                 session.users_profile_set(&status_request).await
             }
-        }).await {
+        })
+        .await
+    {
         Ok(_something) => Ok(()),
         Err(e) => {
             error!("Error setting status: {:#?}", e);

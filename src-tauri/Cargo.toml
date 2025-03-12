@@ -6,7 +6,9 @@ description = "Luxafor-ui"
 authors = ["Robin Kristiansen"]
 
 [features]
-slack_oauth = []
+default = []
+slack_oauth = ["dep:hyper", "dep:hyper-util", "dep:http-body-util"]
+slack_sync = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -30,9 +32,14 @@ serde_json = "1"
 luxafor = { version = "0.3.0", default-features = false, features = ["usb"] }
 slack-morphism = { version = "2.10.0", features = ["hyper"], git = "https://github.com/nibrobb/slack-morphism-rust.git", branch = "add-oauth-user-scope" }
 tracing = { version = "0.1.41", features = ["log", "log-always"] }
-tracing-subscriber = "0.3.19"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
 tokio = { version = "1.43.0", features = ["full", "tracing"] }
-hyper = { version = "1.6.0", features = ["full"] }
-http-body-util = "0.1.2"
-hyper-util = "0.1.10"
+hyper = { version = "1.6.0", optional = true }
+hyper-util = { version = "0.1.10", optional = true }
+http-body-util = { version = "0.1.2", optional = true }
 rvstruct = "0.3.2"
+
+[dev-dependencies]
+tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
+tokio = { version = "1.43.0", features = ["full"] }
+hyper = { version = "1.6.0", features = ["full"] }
