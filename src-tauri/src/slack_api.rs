@@ -10,12 +10,17 @@ use {
     rvstruct::ValueStruct,
     std::convert::Infallible,
     tokio::net::TcpListener,
+    std::sync::Arc,
 };
 
-use slack_morphism::prelude::*;
-use tracing::{debug, error};
+#[allow(unused_imports)]
+use {
+    slack_morphism::prelude::*,
+    tracing::{debug, error}
+};
 
 #[cfg(feature = "slack_oauth")]
+#[allow(unused)]
 pub const INSTALL_URL: &str = "http://localhost:8080/auth/install";
 
 #[allow(unused)]
@@ -25,6 +30,7 @@ pub fn config_env_var(name: &str) -> Result<String, String> {
 
 //noinspection HttpUrlsUsage
 #[cfg(feature = "slack_oauth")]
+#[allow(unused)]
 /// OAuth 2.0 flow for "Add to Slack"
 /// To use "Add to Slack" the redirect URI in the Slack app must be an HTTPS URL
 /// https://api.slack.com/authentication/oauth-v2
@@ -191,6 +197,7 @@ pub async fn setup_oauth() -> Result<(), Box<dyn std::error::Error + Send + Sync
     }
 }
 
+#[cfg(feature = "slack_sync")]
 #[tracing::instrument(skip_all)]
 pub async fn status_set(
     profile: SlackUserProfile,
