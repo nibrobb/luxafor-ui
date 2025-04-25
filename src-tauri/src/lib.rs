@@ -17,10 +17,14 @@ use tauri::{
 use tauri_plugin_store::StoreExt;
 use tracing::*;
 
-mod slack_api;
+#[cfg(any(feature = "slack_sync", feature = "slack_oauth"))]
+pub mod slack_api;
 
 #[cfg(feature = "slack_oauth")]
-use tauri_plugin_opener::open_url;
+#[allow(unused_imports)]
+use {
+    tauri_plugin_opener::open_url,
+};
 
 #[cfg(feature = "slack_sync")]
 use slack_morphism::SlackUserProfile;
@@ -176,17 +180,6 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .setup(move |app| {
             info!("Starting Luxafor-ui");
 
-            // app.manage(Arc::new(Mutex::new(GlobalState {
-            //     bot_token: Some("BOT TOKEN".into()),
-            //     user_token: Some("USER TOKEN".into()),
-            // })));
-
-            // // `Tokens` is already managed, so `manage()` returns false
-            // assert!(!app.manage(Arc::new(Mutex::new(GlobalState {
-            //     bot_token: Some("BOT TOKEN".into()),
-            //     user_token: Some("USER TOKEN".into()),
-            // }))));
-
             // Create the config directory for Luxafor-ui if it does not exist
             match std::fs::exists(app.path().app_config_dir()?) {
                 Ok(false) | Err(_) => {
@@ -212,14 +205,6 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
             // let slack_tokens_from_file = store.get("slack_tokens").expect("Failed to get 'slack_tokens'");
             // debug!("Gotten store:\n{:#?}", slack_tokens_from_file);
-
-
-            // if let Some(bot_token) = store.get("bot_token") {
-            //     if let Some(user_token) = store.get("user_token") {
-            //         app.state::<Arc<Mutex<GlobalState>>>().lock().unwrap().bot_token = Some(bot_token.to_string());
-            //         app.state::<Arc<Mutex<GlobalState>>>().lock().unwrap().user_token = Some(user_token.to_string());
-            //     }
-            // }
 
             let handle = app.handle();
             #[cfg(feature = "slack_oauth")]
@@ -274,11 +259,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         },
                         #[cfg(feature = "slack_oauth")]
                         "add_to_slack" => {
-                            debug!("Add to Slack pressed");
-                            open_url(slack_api::INSTALL_URL, None::<&str>).unwrap();
-                            let state = app.state::<Arc<Mutex<GlobalState>>>().lock().unwrap().clone();
-                            if let Some(ref token) = state.bot_token { debug!("BOT TOKEN:\t{}", token); }
-                            if let Some(ref token) = state.user_token { debug!("USER TOKEN:\t{}", token); }
+                            todo!("Implement logic to add to slack");
+                            // debug!("Add to Slack pressed");
+                            // open_url(slack_api::INSTALL_URL, None::<&str>).unwrap();
+                            // let state = app.state::<Arc<Mutex<GlobalState>>>().lock().unwrap().clone();
+                            // if let Some(ref token) = state.bot_token { debug!("BOT TOKEN:\t{}", token); }
+                            // if let Some(ref token) = state.user_token { debug!("USER TOKEN:\t{}", token); }
                         },
                         #[cfg(feature = "slack_sync")]
                         "activate_slack_status_syncronization" => {
