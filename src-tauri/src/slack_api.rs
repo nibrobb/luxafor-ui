@@ -9,14 +9,14 @@ use {
     hyper_util::rt::TokioIo,
     rvstruct::ValueStruct,
     std::convert::Infallible,
-    tokio::net::TcpListener,
     std::sync::Arc,
+    tokio::net::TcpListener,
 };
 
 #[allow(unused_imports)]
 use {
     slack_morphism::prelude::*,
-    tracing::{debug, error}
+    tracing::{debug, error},
 };
 
 #[cfg(feature = "slack_oauth")]

@@ -17,14 +17,17 @@ use tauri::{
 use tauri_plugin_store::StoreExt;
 use tracing::*;
 
+const PKG_NAME: &str = "Luxafor-ui";
+const AUTHOR: &str = "Robin Kristiansen";
+const COMMENTS: &str = "A simple app to control your Luxafor Flag";
+const COPYRIGHT: &str = "Luxafor-ui is not affiliated with, endorsed by, or associated with Luxafor. Luxafor is a registered trademark of GreyNut SIA.";
+
 #[cfg(any(feature = "slack_sync", feature = "slack_oauth"))]
 pub mod slack_api;
 
 #[cfg(feature = "slack_oauth")]
 #[allow(unused_imports)]
-use {
-    tauri_plugin_opener::open_url,
-};
+use tauri_plugin_opener::open_url;
 
 #[cfg(feature = "slack_sync")]
 use slack_morphism::SlackUserProfile;
@@ -181,42 +184,42 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             info!("Starting Luxafor-ui");
 
             // Create the config directory for Luxafor-ui if it does not exist
-            match std::fs::exists(app.path().app_config_dir()?) {
-                Ok(false) | Err(_) => {
-                    debug!("Creating app config dir at: {}", app.path().app_config_dir()?.display());
-                    std::fs::create_dir_all(app.path().app_config_dir()?).expect("Failed to create app config dir");
-                },
-                _ => {}
+            let app_config_dir = app
+                .path()
+                .app_config_dir()
+                .expect("Failed to resolve app config dir"); // Why would this ever fail?
+
+            let store_path = app_config_dir.join(STORE_FILENAME);
+
+            // Create config directory and store file if they do not exist
+            if !app_config_dir.exists() {
+                std::fs::create_dir_all(&app_config_dir).expect("Failed to create app config dir");
+                std::fs::File::create(&store_path).expect("Failed to create store file");
             }
 
-            let store_path = app.path().app_config_dir()?.join(STORE_FILENAME);
-            info!("{} should be at: {}", STORE_FILENAME, store_path.display());
-
+            // Re-create the store file if the user deleted it
+            if !store_path.exists() {
+                std::fs::File::create(&store_path).expect("Failed to create store file");
+            }
             let store = app.store(&store_path)?;
-            debug!("Is store empty:\n{:#?}", store.is_empty());
-            debug!("Entries:\n{:#?}", store.entries());
+
             if store.is_empty() {
-                store.close_resource();
-                let file = std::fs::File::create(&store_path)?;
-                serde_json::to_writer_pretty(file, &AppStore::default()).expect("TODO: panic message");
+                // TODO: Figure this shit out
             }
 
-            let store = app.store(&store_path)?;
-
-            // let slack_tokens_from_file = store.get("slack_tokens").expect("Failed to get 'slack_tokens'");
-            // debug!("Gotten store:\n{:#?}", slack_tokens_from_file);
-
-            let handle = app.handle();
             #[cfg(feature = "slack_oauth")]
             tauri::async_runtime::spawn(async {
-                slack_api::setup_oauth().await.expect("Failed to setup oauth");
+                slack_api::setup_oauth()
+                    .await
+                    .expect("Failed to setup oauth");
             });
 
+            let handle = app.handle();
             let aboutmeta = AboutMetadataBuilder::new()
-                .name(Some("Luxafor-ui"))
-                .authors(Some(vec![String::from("Robin Kristiansen")]))
-                .comments(Some("A simple app to control your Luxafor Flag"))
-                .copyright(Some("Luxafor-ui is not affiliated with, endorsed by, or associated with Luxafor. Luxafor is a registered trademark of GreyNut SIA."))
+                .name(Some(PKG_NAME))
+                .authors(Some(vec![AUTHOR.into()]))
+                .comments(Some(COMMENTS))
+                .copyright(Some(COPYRIGHT))
                 .icon(Some(handle.default_window_icon().unwrap().clone()))
                 .build();
 
@@ -224,8 +227,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
             let quit_i = MenuItemBuilder::with_id("quit", "Quit").build(handle)?;
 
-            let luxafor_ui_i =
-                MenuItemBuilder::with_id("luxafor_ui", "Luxafor-ui").build(handle)?;
+            let luxafor_ui_i = MenuItemBuilder::with_id("luxafor_ui", PKG_NAME).build(handle)?;
 
             #[cfg(feature = "slack_oauth")]
             let add_to_slack_i =
@@ -245,43 +247,41 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .build()?;
             let _tray = TrayIconBuilder::new()
                 .menu(&menu)
-                .tooltip("Luxafor-ui")
+                .tooltip(PKG_NAME)
                 .show_menu_on_left_click(true)
                 .icon(handle.default_window_icon().unwrap().clone())
-                .on_menu_event(|app, event|
-                    match event.id.as_ref() {
-                        "luxafor_ui" => {
-                            if let Some(window) = app.get_webview_window("main") {
-                                window.show().unwrap();
-                                window.unminimize().unwrap();
-                                window.set_focus().unwrap();
-                            }
-                        },
-                        #[cfg(feature = "slack_oauth")]
-                        "add_to_slack" => {
-                            todo!("Implement logic to add to slack");
-                            // debug!("Add to Slack pressed");
-                            // open_url(slack_api::INSTALL_URL, None::<&str>).unwrap();
-                            // let state = app.state::<Arc<Mutex<GlobalState>>>().lock().unwrap().clone();
-                            // if let Some(ref token) = state.bot_token { debug!("BOT TOKEN:\t{}", token); }
-                            // if let Some(ref token) = state.user_token { debug!("USER TOKEN:\t{}", token); }
-                        },
-                        #[cfg(feature = "slack_sync")]
-                        "activate_slack_status_syncronization" => {
-                            todo!("Implement logic to turn on/off Slack staus sync")
-                        },
-                        "quit" => {
-                            app.exit(0);
-                        },
-                        _ => {}
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "luxafor_ui" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            window.show().unwrap();
+                            window.unminimize().unwrap();
+                            window.set_focus().unwrap();
+                        }
                     }
-                )
+                    #[cfg(feature = "slack_oauth")]
+                    "add_to_slack" => {
+                        todo!("Implement logic to add to slack");
+                        // debug!("Add to Slack pressed");
+                        // open_url(slack_api::INSTALL_URL, None::<&str>).unwrap();
+                        // let state = app.state::<Arc<Mutex<GlobalState>>>().lock().unwrap().clone();
+                        // if let Some(ref token) = state.bot_token { debug!("BOT TOKEN:\t{}", token); }
+                        // if let Some(ref token) = state.user_token { debug!("USER TOKEN:\t{}", token); }
+                    }
+                    #[cfg(feature = "slack_sync")]
+                    "activate_slack_status_syncronization" => {
+                        todo!("Implement logic to turn on/off Slack staus sync")
+                    }
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    _ => {}
+                })
                 .on_tray_icon_event(|tray, event| match event {
                     TrayIconEvent::DoubleClick {
                         button: MouseButton::Left,
                         ..
-                    } |
-                    TrayIconEvent::Click {
+                    }
+                    | TrayIconEvent::Click {
                         button: MouseButton::Left,
                         button_state: MouseButtonState::Up,
                         ..
@@ -308,9 +308,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         })
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![
-            set_light_color,
-        ])
+        .invoke_handler(tauri::generate_handler![set_light_color,])
         .run(tauri::generate_context!())?;
 
     Ok(())
