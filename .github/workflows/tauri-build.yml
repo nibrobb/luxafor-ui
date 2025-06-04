@@ -31,7 +31,7 @@ jobs:
 
       - name: Setup Rust and Cargo (Windows and Ubuntu)
         # if: matrix.platform != 'macos-latest'
-        uses: moonrepo/setup-rust@v1.2.1
+        uses: moonrepo/setup-rust@v1.2.2
         with:
           bins: tauri-cli@2,trunk,wasm-bindgen-cli
           cache-target: release
@@ -56,7 +56,7 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libudev-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev patchelf libudev-dev libayatana-appindicator3-dev
         
       - uses: tauri-apps/tauri-action@v0
         env:
