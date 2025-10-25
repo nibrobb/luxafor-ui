@@ -20,7 +20,7 @@ use tracing::*;
 const PKG_NAME: &str = "Luxafor-ui";
 const AUTHOR: &str = "Robin Kristiansen";
 const COMMENTS: &str = "A simple app to control your Luxafor Flag";
-const COPYRIGHT: &str = include_str!("./copyright.txt");
+const COPYRIGHT: &str = include_str!("copyright.txt");
 
 #[cfg(any(feature = "slack_sync", feature = "slack_oauth"))]
 pub mod slack_api;
