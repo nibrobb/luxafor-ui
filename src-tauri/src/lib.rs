@@ -243,9 +243,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             }
             let store = app.store(&store_path)?;
 
-            if store.is_empty() {
-                todo!("Figure this shit out");
-            }
+            // if store.is_empty() {
+            //     todo!("Figure this shit out");
+            // }
 
             #[cfg(feature = "slack_oauth")]
             tauri::async_runtime::spawn(async {
