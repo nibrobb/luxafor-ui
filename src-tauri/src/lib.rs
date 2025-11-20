@@ -1,17 +1,24 @@
-use serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::{str::FromStr, time::Duration};
-use tauri::{
-    menu::{MenuBuilder, MenuItemBuilder},
-    tray::{MouseButton, MouseButtonState, TrayIconEvent},
-    AppHandle, Runtime,
+use std::{
+    str::FromStr,
+    time::Duration,
 };
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+
+use serde::{Deserialize, Serialize};
 use luxafor::{usb_hid::USBDeviceDiscovery, Device, SolidColor};
 use tauri::{
-    menu::{AboutMetadataBuilder, PredefinedMenuItem},
-    tray::TrayIconBuilder,
-    Manager, WindowEvent,
+    menu::{
+        MenuBuilder,
+        MenuItemBuilder,
+        AboutMetadataBuilder,
+        PredefinedMenuItem,
+    },
+    tray::{
+        MouseButton,
+        MouseButtonState,
+        TrayIconEvent,
+        TrayIconBuilder,
+    },
+    Manager, WindowEvent, AppHandle,
 };
 
 use tauri_plugin_store::StoreExt as _;
@@ -21,23 +28,25 @@ const PKG_NAME: &str = "Luxafor-ui";
 const AUTHOR: &str = "Robin Kristiansen";
 const COMMENTS: &str = "A simple app to control your Luxafor Flag";
 const COPYRIGHT: &str = include_str!("copyright.txt");
+const SETTINGS_FILENAME: &str = "settings.json";
 
-#[cfg(any(feature = "slack_sync", feature = "slack_oauth"))]
-pub mod slack_api;
+#[cfg(feature = "slack_sync")]
+const SESSION_URL: &str = env!("SLACK_SESSION_URL");
+#[cfg(feature = "slack_sync")]
+const SESSION_STATUS_URL: &str = env!("SLACK_SESSION_STATUS_URL");
 
-#[cfg(feature = "slack_oauth")]
-#[allow(unused_imports)]
-use tauri_plugin_opener::open_url;
+#[cfg(feature = "slack_sync")]
+mod slack_api;
+
 
 #[cfg(feature = "slack_sync")]
 use slack_morphism::SlackUserProfile;
 
 use slack_morphism::SlackApiTokenValue;
 
-const STORE_FILENAME: &str = "store.json";
+
 
 #[cfg(feature = "slack_sync")]
-#[tracing::instrument]
 fn color_to_profile(color: &SolidColor) -> SlackUserProfile {
     /* TODO: Use some centralized map e.g., the file "store.json", to store user-defined mappings
     between color and status, and vice versa */
@@ -77,39 +86,37 @@ impl TryFrom<serde_json::Value> for SlackApiTokens {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct AppStore {
-    slack_tokens: SlackApiTokens,
-}
-
-impl TryFrom<serde_json::Value> for AppStore {
-    type Error = serde_json::Error;
-    fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
-        serde_json::from_value(value)
-    }
-}
-
-impl Default for AppStore {
-    fn default() -> Self {
-        Self {
-            slack_tokens: SlackApiTokens {
-                user_token: None,
-                bot_token: None,
-            },
-        }
-    }
-}
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// struct AppStore {
+//     slack_tokens: SlackApiTokens,
+// }
+//
+// impl TryFrom<serde_json::Value> for AppStore {
+//     type Error = serde_json::Error;
+//     fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
+//         serde_json::from_value(value)
+//     }
+// }
+//
+// impl Default for AppStore {
+//     fn default() -> Self {
+//         Self {
+//             slack_tokens: SlackApiTokens {
+//                 user_token: None,
+//                 bot_token: None,
+//             },
+//         }
+//     }
+// }
 
 #[cfg(feature = "slack_sync")]
-#[tracing::instrument]
-async fn call_api(profile: SlackUserProfile, tokens: SlackApiTokens) -> Result<(), String> {
+async fn slack_set_profile(profile: SlackUserProfile, tokens: SlackApiTokens) -> Result<(), String> {
     let user_token = match tokens.user_token {
         Some(token) => token,
         None => return Err("user_token not found".to_string()),
     };
     match tauri::async_runtime::spawn(async move {
-        use slack_morphism::SlackApiToken;
-        slack_api::status_set(profile, SlackApiToken::new(user_token)).await
+        slack_api::status_set(profile.clone(), user_token.clone()).await
     })
     .await
     {
@@ -118,32 +125,7 @@ async fn call_api(profile: SlackUserProfile, tokens: SlackApiTokens) -> Result<(
     }
 }
 
-fn append_action<R: Runtime>(
-    actions_store: &tauri_plugin_store::Store<R>,
-    new_item: serde_json::Value,
-) -> tauri::Result<()> {
-    // Get actions array
-    let mut actions = actions_store
-        .get("actions")
-        .unwrap_or(serde_json::Value::Array(vec![]));
-
-    // Check it's actually an array
-    if let serde_json::Value::Array(ref mut arr) = actions {
-        info!("Pushed {:?} into actions", new_item);
-        arr.push(new_item);
-    } else {
-        // actions = serde_json::Value::Array(vec![new_item]);
-        todo!("Figure out what to do here");
-    }
-
-    // Save the changes
-    actions_store.set("actions", actions);
-    actions_store.save().unwrap();
-    Ok(())
-}
-
 #[tauri::command]
-#[tracing::instrument(skip(app))]
 async fn set_light_color(
     #[allow(unused_variables)] app: AppHandle,
     color: &str,
@@ -151,14 +133,15 @@ async fn set_light_color(
     span!(Level::DEBUG, "set_light_color");
 
     #[cfg(feature = "slack_sync")]
-    let app_store = {
+    let tokens: SlackApiTokens = {
         let store_path = app
             .path()
             .app_config_dir()
             .map_err(|e| e.to_string())?
-            .join(STORE_FILENAME);
+            .join(SETTINGS_FILENAME);
         let store = app.store(store_path).map_err(|e| e.to_string())?;
-        let app_store: SlackApiTokens = match store.get("slack_tokens") {
+        // TODO: Abstract to helper function
+        let slack_tokens: SlackApiTokens = match store.get("slack_tokens") {
             Some(store) => match store.try_into() {
                 Ok(store) => store,
                 Err(e) => {
@@ -171,11 +154,8 @@ async fn set_light_color(
                 return Err("Could not get store".to_string());
             }
         };
-        store.close_resource();
-        app_store
+        slack_tokens
     };
-
-    let actions = app.store("actions.json").unwrap();
 
     let discovery = USBDeviceDiscovery::new().map_err(|e| e.to_string())?;
     let device = discovery.device().map_err(|e| e.to_string())?;
@@ -189,11 +169,9 @@ async fn set_light_color(
                 #[cfg(feature = "slack_sync")]
                 {
                     let profile = color_to_profile(&parsed_color);
-                    let tokens = app_store.clone();
-                    call_api(profile, tokens).await?;
+                    let tokens = tokens.clone();
+                    slack_set_profile(profile, tokens).await?;
                 }
-                info!("Append foobar to actions");
-                let _ = append_action(&actions, json!( {"foo": "bar"} ));
 
                 device
                     .set_solid_color(parsed_color)
@@ -211,6 +189,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .plugin(tauri_plugin_store::Builder::default().build())
         .setup(move |app| {
             info!("Starting Luxafor-ui");
+            debug!("SESSION_URL: {}", SESSION_URL);
+            debug!("SESSION_STATUS_URL: {}", SESSION_STATUS_URL);
 
             // Create the config directory for Luxafor-ui if it does not exist
             let app_config_dir = app
@@ -218,44 +198,28 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .app_config_dir()
                 .expect("Failed to resolve app config dir"); // Why would this ever fail?
 
-            let store_path = app_config_dir.join(STORE_FILENAME);
-            info!("Store path: {:?}", &store_path);
-
-            // Create config directory and store file if they do not exist
-            if !app_config_dir.exists() {
-                std::fs::create_dir_all(&app_config_dir).expect("Failed to create app config dir");
-                std::fs::File::create(&store_path).expect("Failed to create store file");
-            }
+            let settings_path = app_config_dir.join(SETTINGS_FILENAME);
+            info!("Settings path: {:?}", settings_path);
 
             let handle = app.app_handle().clone();
 
-            let _ = handle
-                .store_builder("actions.json")
-                .default("actions", serde_json::Value::Array(Vec::new()))
+            let store = tauri_plugin_store::StoreBuilder::new(app, settings_path)
                 .auto_save(Duration::from_secs(5))
                 .build()?;
 
-            // actions_store.save().unwrap();
-
-            // Re-create the store file if the user deleted it
-            if !store_path.exists() {
-                std::fs::File::create(&store_path).expect("Failed to create store file");
-            }
-            let store = app.store(&store_path)?;
-
             if store.is_empty() {
-                todo!("Figure this shit out");
+                store.set(
+                    "slack_tokens",
+                    serde_json::to_value(SlackApiTokens {
+                        user_token: None,
+                        bot_token: None,
+                    })?,
+                )
             }
 
-            #[cfg(feature = "slack_oauth")]
-            tauri::async_runtime::spawn(async {
-                slack_api::setup_oauth()
-                    .await
-                    .expect("Failed to setup oauth");
-            });
+            debug!("Store contents:\n{:#?}", store.entries());
 
-            // let handle = app.handle();
-            let aboutmeta = AboutMetadataBuilder::new()
+            let about_meta = AboutMetadataBuilder::new()
                 .name(Some(PKG_NAME))
                 .authors(Some(vec![AUTHOR.into()]))
                 .comments(Some(COMMENTS))
@@ -263,28 +227,29 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .icon(Some(handle.default_window_icon().unwrap().clone()))
                 .build();
 
-            let about_i = PredefinedMenuItem::about(&handle, Some("About"), Some(aboutmeta))?;
+            let about_i = PredefinedMenuItem::about(&handle, Some("About"), Some(about_meta))?;
 
             let quit_i = MenuItemBuilder::with_id("quit", "Quit").build(&handle)?;
 
             let luxafor_ui_i = MenuItemBuilder::with_id("luxafor_ui", PKG_NAME).build(&handle)?;
 
-            #[cfg(feature = "slack_oauth")]
+            #[cfg(feature = "slack_sync")]
             let add_to_slack_i =
-                MenuItemBuilder::with_id("add_to_slack", "Add to Slack").build(handle)?;
+                MenuItemBuilder::with_id("add_to_slack", "Add to Slack").build(&handle)?;
 
             let menu = MenuBuilder::new(&handle)
                 .items(&[
                     &luxafor_ui_i,
                     &about_i,
-                    #[cfg(feature = "slack_oauth")]
+                    #[cfg(feature = "slack_sync")]
                     &PredefinedMenuItem::separator(&handle)?,
-                    #[cfg(feature = "slack_oauth")]
+                    #[cfg(feature = "slack_sync")]
                     &add_to_slack_i,
                     &PredefinedMenuItem::separator(&handle)?,
                     &quit_i,
                 ])
                 .build()?;
+
             let _tray = TrayIconBuilder::new()
                 .menu(&menu)
                 .tooltip(PKG_NAME)
@@ -298,18 +263,17 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                             window.set_focus().unwrap();
                         }
                     }
-                    #[cfg(feature = "slack_oauth")]
-                    "add_to_slack" => {
-                        todo!("Implement logic to add to slack");
-                        // debug!("Add to Slack pressed");
-                        // open_url(slack_api::INSTALL_URL, None::<&str>).unwrap();
-                        // let state = app.state::<Arc<Mutex<GlobalState>>>().lock().unwrap().clone();
-                        // if let Some(ref token) = state.bot_token { debug!("BOT TOKEN:\t{}", token); }
-                        // if let Some(ref token) = state.user_token { debug!("USER TOKEN:\t{}", token); }
-                    }
                     #[cfg(feature = "slack_sync")]
-                    "activate_slack_status_syncronization" => {
-                        todo!("Implement logic to turn on/off Slack staus sync")
+                    "add_to_slack" => {
+                        debug!("Add to Slack pressed");
+                        // TODO: Sent POST request to ``SESSION_URL``
+                        //  Parse response and grab `authorization URL`
+                        //  Open `authorization URL` in the browser
+                        //  While waiting for the OAuth flow to complete, poll the `SESSION_STATUS_URL`
+                        //  Until it returns a 200 OK with the tokens
+                        //  Then store them in the store (`settings.json`)
+                        let authorization_url = "https://nibrobb.dev";  // Placeholder
+                        tauri_plugin_opener::open_url(authorization_url, None::<&str>).unwrap();
                     }
                     "quit" => {
                         app.exit(0);

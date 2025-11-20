@@ -7,7 +7,6 @@ authors = ["Robin Kristiansen"]
 
 [features]
 default = []
-slack_oauth = ["dep:hyper", "dep:hyper-util", "dep:http-body-util"]
 slack_sync = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
