@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::Duration};
+use std::str::FromStr;
 
 use luxafor::{usb_hid::USBDeviceDiscovery, Device, SolidColor};
 use tauri::{
@@ -25,7 +25,7 @@ const SESSION_STATUS_URL: &str = env!("SLACK_SESSION_STATUS_URL");
 mod slack_api;
 
 #[cfg(feature = "slack_sync")]
-use {slack_api::SlackApiTokens, slack_morphism::SlackUserProfile};
+use slack_morphism::SlackUserProfile;
 
 #[cfg(feature = "slack_sync")]
 fn color_to_profile(color: SolidColor) -> SlackUserProfile {
@@ -59,33 +59,6 @@ async fn set_light_color(
     #[allow(unused_variables)] app: AppHandle,
     color: &str,
 ) -> Result<(), String> {
-    #[cfg(feature = "slack_sync")]
-    let tokens: SlackApiTokens = {
-        let store_path = app
-            .path()
-            .app_config_dir()
-            .map_err(|e| e.to_string())?
-            .join(SETTINGS_FILENAME);
-        let store = app
-            .get_store(store_path)
-            .ok_or("Could not get store".to_string())?;
-        // TODO: Abstract to helper function
-        let slack_tokens: SlackApiTokens = match store.get("slack_tokens") {
-            Some(value) => match value.try_into() {
-                Ok(tokens) => tokens,
-                Err(e) => {
-                    #[cfg(feature = "tracing")]
-                    tracing::error!("Could not parse `slack_tokens`: {}", e);
-                    return Err(e.to_string());
-                }
-            },
-            None => {
-                return Err("Key `slack_tokens` not found in `settings.json`".to_string());
-            }
-        };
-        slack_tokens
-    };
-
     let discovery = USBDeviceDiscovery::new().map_err(|e| e.to_string())?;
     let device = discovery.device().map_err(|e| e.to_string())?;
     #[cfg(feature = "tracing")]
@@ -102,7 +75,7 @@ async fn set_light_color(
                 #[cfg(feature = "slack_sync")]
                 {
                     let profile = color_to_profile(parsed_color);
-                    let tokens = tokens.clone();
+                    let tokens = slack_api::retrieve_tokens(app.clone())?;
                     slack_api::slack_set_profile(profile, tokens).await?;
                 }
                 res
@@ -141,22 +114,14 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             #[cfg(feature = "slack_sync")]
             settings_json_default.insert(
                 "slack_tokens".to_string(),
-                serde_json::to_value(SlackApiTokens::default())?,
+                serde_json::to_value(slack_api::SlackApiTokens::default())?,
             );
             // TODO: Insert color/profile-mappings
 
             #[allow(unused)]
             let store = tauri_plugin_store::StoreBuilder::new(app, settings_path)
-                .auto_save(Duration::from_secs(5))
                 .defaults(settings_json_default)
                 .build()?;
-
-            // if store.is_empty() {
-            //     store.set(
-            //         "slack_tokens",
-            //         serde_json::to_value(SlackApiTokens::default())?,
-            //     )
-            // }
 
             #[cfg(feature = "tracing")]
             tracing::debug!("Store contents:\n{:#?}", store.entries());
@@ -209,14 +174,59 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     "add_to_slack" => {
                         #[cfg(feature = "tracing")]
                         tracing::debug!("Add to Slack pressed");
-                        // TODO: Sent POST request to ``SESSION_URL``
-                        //  Parse response and grab `authorization URL`
-                        //  Open `authorization URL` in the browser
+                        let session_thread = std::thread::spawn(|| {
+                            tauri::async_runtime::block_on(async {
+                                slack_api::SlackAuthSession::new()
+                                    .init_session()
+                                    .await
+                                    .unwrap()
+                            })
+                        });
+                        // TODO: This shit blocks the main thread, yikes
+                        let result = session_thread.join().unwrap();
+
+                        let authorization_url = result.authorize_url();
+                        tauri_plugin_opener::open_url(authorization_url, None::<&str>).unwrap();
                         //  While waiting for the OAuth flow to complete, poll the `SESSION_STATUS_URL`
                         //  Until it returns a 200 OK with the tokens
-                        //  Then store them in the store (`settings.json`)
-                        let authorization_url = "https://nibrobb.dev"; // Placeholder
-                        tauri_plugin_opener::open_url(authorization_url, None::<&str>).unwrap();
+                        let store_handle = app.app_handle().clone();
+                        let polling_thread = std::thread::spawn(|| {
+                            tauri::async_runtime::block_on(async move {
+                                loop {
+                                    match result.poll_status().await {
+                                        slack_api::PollingSessionResponse {
+                                            status: slack_api::PollStatus::Pending,
+                                            ..
+                                        } => {
+                                            #[cfg(feature = "tracing")]
+                                            tracing::debug!("Authorization pending...");
+                                            //  Wait a bit before polling again
+                                            tokio::time::sleep(std::time::Duration::from_secs(5))
+                                                .await;
+                                        }
+                                        tok_response @ slack_api::PollingSessionResponse {
+                                            status: slack_api::PollStatus::Ok,
+                                            ..
+                                        } => {
+                                            #[cfg(feature = "tracing")]
+                                            tracing::info!("Authorization successful!");
+
+                                            if let Some(tokens) = tok_response.tokens {
+                                                #[cfg(feature = "tracing")]
+                                                tracing::debug!("Received tokens: {:#?}", tokens);
+
+                                                slack_api::store_tokens(store_handle, &tokens)
+                                                    .expect("Could not store tokens");
+                                            }
+                                            break;
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            })
+                        });
+                        // TODO: This shit blocks the main thread, yikes
+                        polling_thread.join().unwrap();
                     }
                     "quit" => {
                         app.exit(0);
