@@ -32,7 +32,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-unknown-unknown ${{ matrix.platform == 'macos-latest' && ',aarch64-apple-darwin,x86_64-apple-darwin' }}
+          targets: wasm32-unknown-unknown ${{ matrix.platform == 'macos-latest' && ',aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Install cargo-binstall
         run: cargo install cargo-binstall
