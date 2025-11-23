@@ -7,7 +7,8 @@ authors = ["Robin Kristiansen"]
 
 [features]
 default = []
-slack_sync = []
+slack_sync = ["dep:slack-morphism", "dep:tauri-plugin-opener"]
+tracing = ["dep:tracing", "dep:tracing-subscriber"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -23,22 +24,15 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"] }
-tauri-plugin-shell = "2"
-tauri-plugin-opener = "2"
+tauri-plugin-opener = { version = "2", optional = true}
 tauri-plugin-store = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 luxafor = { version = "0.3.0", default-features = false, features = ["usb"] }
-slack-morphism = { version = "^2.16.0", features = ["hyper"] }
-tracing = { version = "0.1.41", features = ["log", "log-always"] }
-tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
-tokio = { version = "1.43.0", features = ["full", "tracing"] }
-hyper = { version = "1.6.0", optional = true }
-hyper-util = { version = "0.1.10", optional = true }
-http-body-util = { version = "0.1.2", optional = true }
-rvstruct = "0.3.2"
+
+slack-morphism = { version = "2.17.0", features = ["hyper"], optional = true}
+tracing = { version = "0.1.41", features = ["log", "log-always"], optional = true}
+tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"], optional = true}
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
-tokio = { version = "1.43.0", features = ["full"] }
-hyper = { version = "1.6.0", features = ["full"] }
