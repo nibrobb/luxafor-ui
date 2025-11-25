@@ -17,11 +17,6 @@ const COPYRIGHT: &str = include_str!("copyright.txt");
 const SETTINGS_FILENAME: &str = "settings.json";
 
 #[cfg(feature = "slack_sync")]
-const SESSION_URL: &str = env!("SLACK_SESSION_URL");
-#[cfg(feature = "slack_sync")]
-const SESSION_STATUS_URL: &str = env!("SLACK_SESSION_STATUS_URL");
-
-#[cfg(feature = "slack_sync")]
 mod slack_api;
 
 #[cfg(feature = "slack_sync")]
@@ -94,8 +89,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             tracing::info!("Starting Luxafor-ui");
             #[cfg(all(feature = "slack_sync", feature = "tracing"))]
             {
-                tracing::debug!("SESSION_URL: {}", SESSION_URL);
-                tracing::debug!("SESSION_STATUS_URL: {}", SESSION_STATUS_URL);
+                tracing::debug!("SESSION_URL: {}", slack_api::SESSION_URL);
             }
 
             let app_config_dir = app
@@ -174,59 +168,50 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     "add_to_slack" => {
                         #[cfg(feature = "tracing")]
                         tracing::debug!("Add to Slack pressed");
-                        let session_thread = std::thread::spawn(|| {
-                            tauri::async_runtime::block_on(async {
-                                slack_api::SlackAuthSession::new()
-                                    .init_session()
-                                    .await
-                                    .unwrap()
-                            })
-                        });
-                        // TODO: This shit blocks the main thread, yikes
-                        let result = session_thread.join().unwrap();
-
-                        let authorization_url = result.authorize_url();
-                        tauri_plugin_opener::open_url(authorization_url, None::<&str>).unwrap();
-                        //  While waiting for the OAuth flow to complete, poll the `SESSION_STATUS_URL`
-                        //  Until it returns a 200 OK with the tokens
                         let store_handle = app.app_handle().clone();
-                        let polling_thread = std::thread::spawn(|| {
-                            tauri::async_runtime::block_on(async move {
-                                loop {
-                                    match result.poll_status().await {
-                                        slack_api::PollingSessionResponse {
-                                            status: slack_api::PollStatus::Pending,
-                                            ..
-                                        } => {
-                                            #[cfg(feature = "tracing")]
-                                            tracing::debug!("Authorization pending...");
-                                            //  Wait a bit before polling again
-                                            tokio::time::sleep(std::time::Duration::from_secs(5))
-                                                .await;
-                                        }
-                                        tok_response @ slack_api::PollingSessionResponse {
-                                            status: slack_api::PollStatus::Ok,
-                                            ..
-                                        } => {
-                                            #[cfg(feature = "tracing")]
-                                            tracing::info!("Authorization successful!");
+                        tauri::async_runtime::spawn(async {
+                            let auth_session = slack_api::SlackAuthSession::new()
+                                .init_session()
+                                .await
+                                .expect("Could not initialize Slack Auth session");
 
-                                            if let Some(tokens) = tok_response.tokens {
-                                                #[cfg(feature = "tracing")]
-                                                tracing::debug!("Received tokens: {:#?}", tokens);
-
-                                                slack_api::store_tokens(store_handle, &tokens)
-                                                    .expect("Could not store tokens");
-                                            }
-                                            break;
-                                        }
-                                        _ => {}
+                            tauri_plugin_opener::open_url(
+                                auth_session.authorize_url(),
+                                None::<&str>,
+                            )
+                            .unwrap();
+                            loop {
+                                match auth_session.poll_status().await {
+                                    slack_api::PollingSessionResponse {
+                                        status: slack_api::PollStatus::Pending,
+                                        ..
+                                    } => {
+                                        #[cfg(feature = "tracing")]
+                                        tracing::debug!("Authorization pending...");
+                                        //  Wait a bit before polling again
+                                        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                                     }
+                                    slack_api::PollingSessionResponse {
+                                        status: slack_api::PollStatus::Ok,
+                                        tokens,
+                                        ..
+                                    } => {
+                                        #[cfg(feature = "tracing")]
+                                        tracing::info!("Authorization successful!");
+
+                                        if let Some(tokens) = tokens {
+                                            #[cfg(feature = "tracing")]
+                                            tracing::debug!("Received tokens:\n{:#?}", tokens);
+
+                                            slack_api::store_tokens(store_handle, tokens)
+                                                .expect("Could not store tokens");
+                                        }
+                                        break;
+                                    }
+                                    _ => {} // Ignore all other statuses
                                 }
-                            })
+                            }
                         });
-                        // TODO: This shit blocks the main thread, yikes
-                        polling_thread.join().unwrap();
                     }
                     "quit" => {
                         app.exit(0);

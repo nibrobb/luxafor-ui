@@ -1,0 +1,2 @@
+[env]
+SLACK_SESSION_URL = "https://nibrobb.dev/api/slack/session"
