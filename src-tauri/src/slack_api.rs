@@ -1,8 +1,10 @@
-use crate::{SESSION_STATUS_URL, SESSION_URL, SETTINGS_FILENAME};
+use crate::SETTINGS_FILENAME;
 use serde::{Deserialize, Serialize};
 use slack_morphism::prelude::*;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_store::StoreExt;
+
+pub(crate) const SESSION_URL: &str = env!("SLACK_SESSION_URL");
 
 #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
 pub(crate) async fn status_set(
@@ -108,19 +110,6 @@ impl TryFrom<serde_json::Value> for SlackApiTokens {
     }
 }
 
-// {
-//     "session_id": "b1d6a3489910c4612c13023c0f1b99a2",
-//     "session_secret": "12a6bae73b74f2df40da5a04fd271f3e",
-//     "authorize_url": "http://preview.nibrobb.dev//oauth/slack?session_id=b1d6a3489910c4612c13023c0f1b99a2&session_secret=12a6bae73b74f2df40da5a04fd271f3e"
-// }
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct SlackAuthSession {
-    #[serde(skip)]
-    client: reqwest::Client,
-    session_id: Option<String>,
-    session_secret: Option<String>,
-    authorize_url: Option<reqwest::Url>,
-}
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub(crate) enum PollStatus {
     #[serde(rename = "pending")]
@@ -138,39 +127,47 @@ pub(crate) struct PollingSessionResponse {
     pub(crate) tokens: Option<SlackApiTokens>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) struct SlackAuthSession {
+    #[serde(skip)]
+    client: reqwest::Client,
+    authorize_url: Option<reqwest::Url>,
+    poll_url: Option<reqwest::Url>,
+}
 impl SlackAuthSession {
+    /// Retrieves the authorize_url. Panics if not set.
     pub(crate) fn authorize_url(&self) -> &reqwest::Url {
-        self.authorize_url.as_ref().unwrap()
+        self.authorize_url
+            .as_ref()
+            .expect("authorize_url was not set")
     }
-    pub(crate) fn session_id_secret(&self) -> (&str, &str) {
-        (
-            self.session_id.as_ref().unwrap(),
-            self.session_secret.as_ref().unwrap(),
-        )
+    /// Retrieves the poll_url. Panics if not set.
+    pub(crate) fn poll_url(&self) -> &reqwest::Url {
+        self.poll_url.as_ref().expect("poll_url was not set")
     }
+    /// Create a new SlackAuthSession. Must be called before [`SlackAuthSession::init_session`]
     pub(crate) fn new() -> Self {
         static APP_USER_AGENT: &str =
             concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
         Self {
             client: reqwest::Client::builder()
                 .user_agent(APP_USER_AGENT)
+                .connect_timeout(std::time::Duration::from_secs(5))
                 .build()
-                .unwrap(),
-            session_id: None,
-            session_secret: None,
+                .expect("Could not build reqwest client"),
             authorize_url: None,
+            poll_url: None,
         }
     }
+    /// Initializes a new SlackAuthSession by making a POST request to the SESSION_URL.
+    /// On success, it returns a SlackAuthSession populated with the response data.
+    /// Must be called AFTER [`SlackAuthSession::new`]
     pub(crate) async fn init_session(
         &self,
     ) -> Result<SlackAuthSession, Box<dyn std::error::Error>> {
         let response = self
             .client
             .request(reqwest::Method::POST, SESSION_URL)
-            .header(
-                "x-vercel-protection-bypass",
-                "9atIb6T13C4Exyo9RM8TW4kx0mKZymcU",
-            )
             .header("Content-Type", "application/json")
             .send()
             .await?;
@@ -186,19 +183,7 @@ impl SlackAuthSession {
     }
     pub(crate) async fn poll_status(&self) -> PollingSessionResponse {
         self.client
-            .request(
-                reqwest::Method::GET,
-                format!(
-                    "{}?session_id={}&session_secret={}",
-                    SESSION_STATUS_URL,
-                    self.session_id.as_ref().unwrap(),
-                    self.session_secret.as_ref().unwrap()
-                ),
-            )
-            .header(
-                "x-vercel-protection-bypass",
-                "9atIb6T13C4Exyo9RM8TW4kx0mKZymcU",
-            )
+            .request(reqwest::Method::GET, self.poll_url().as_ref())
             .header("Content-Type", "application/json")
             .send()
             .await
@@ -209,6 +194,7 @@ impl SlackAuthSession {
     }
 }
 
+/// Resolves the path to the settings.json file in the app's config directory.
 fn resolve_store_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     app.path()
         .app_config_dir()
@@ -216,6 +202,7 @@ fn resolve_store_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
         .map(|path| path.join(SETTINGS_FILENAME))
 }
 
+/// Retrieves the SlackApiTokens from the store.
 pub(crate) fn retrieve_tokens(app: AppHandle) -> Result<SlackApiTokens, String> {
     let store_path = resolve_store_path(app.app_handle())?;
     let store = app
@@ -234,14 +221,25 @@ pub(crate) fn retrieve_tokens(app: AppHandle) -> Result<SlackApiTokens, String> 
     }
 }
 
-pub(crate) fn store_tokens(app: AppHandle, tokens: &SlackApiTokens) -> Result<(), String> {
+impl AsRef<SlackApiTokens> for SlackApiTokens {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
+/// Stores the SlackApiTokens in the store (resolved settings.json).
+pub(crate) fn store_tokens<T, U>(app: AppHandle, tokens: T) -> Result<(), String>
+where
+    T: AsRef<U>,
+    U: Serialize,
+{
     let store_path = resolve_store_path(app.app_handle())?;
     let store = app
         .get_store(store_path)
         .ok_or("Could not get store".to_string())?;
     store.set(
         "slack_tokens",
-        serde_json::to_value(tokens).map_err(|e| e.to_string())?,
+        serde_json::to_value(tokens.as_ref()).map_err(|e| e.to_string())?,
     );
     store.save().map_err(|e| e.to_string())
 }
