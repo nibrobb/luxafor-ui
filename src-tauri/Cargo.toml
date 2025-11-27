@@ -7,7 +7,7 @@ authors = ["Robin Kristiansen"]
 
 [features]
 default = []
-slack_sync = ["dep:slack-morphism", "dep:tauri-plugin-opener", "dep:reqwest"]
+slack_sync = ["dep:slack-morphism", "dep:tauri-plugin-opener", "dep:reqwest", "tokio/time"]
 tracing = ["dep:tracing", "dep:tracing-subscriber"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -34,7 +34,7 @@ slack-morphism = { version = "2.17.0", features = ["hyper"], optional = true}
 tracing = { version = "0.1.41", features = ["log", "log-always"], optional = true}
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"], optional = true}
 reqwest = { version = "0.12.24", features = ["json"], optional = true}
-tokio = { version = "1" }
+tokio = { version = "1", optional = true }
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
