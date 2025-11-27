@@ -35,10 +35,12 @@ jobs:
           targets: wasm32-unknown-unknown ${{ matrix.platform == 'macos-latest' && ',aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Install cargo-binstall
-        run: cargo install cargo-binstall
+        uses: cargo-bins/cargo-binstall@v1.16.2
 
       - name: Install binaries
-        run: cargo binstall tauri-cli@2 trunk wasm-bindgen-cli
+        run: cargo binstall -y tauri-cli@2 trunk wasm-bindgen-cli
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
