@@ -39,6 +39,8 @@ jobs:
 
       - name: Install binaries
         run: cargo binstall -y tauri-cli@2 trunk wasm-bindgen-cli
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
