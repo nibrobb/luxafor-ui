@@ -181,16 +181,17 @@ impl SlackAuthSession {
         tracing::debug!("InitSessionResponse:\n{:#?}", res_json);
         Ok(res_json)
     }
-    pub(crate) async fn poll_status(&self) -> PollingSessionResponse {
-        self.client
-            .request(reqwest::Method::GET, self.poll_url().as_ref())
+    pub(crate) async fn poll_status(
+        &self,
+    ) -> Result<PollingSessionResponse, Box<dyn std::error::Error + Send + Sync>> {
+        let response = self
+            .client
+            .get(self.poll_url().as_ref())
             .header("Content-Type", "application/json")
             .send()
-            .await
-            .unwrap()
-            .json::<PollingSessionResponse>()
-            .await
-            .unwrap()
+            .await?;
+        let polling_response = response.json::<PollingSessionResponse>().await?;
+        Ok(polling_response)
     }
 }
 
@@ -208,7 +209,9 @@ pub(crate) fn retrieve_tokens(app: AppHandle) -> Result<SlackApiTokens, String> 
     let store = app
         .get_store(store_path)
         .ok_or("Could not get store".to_string())?;
-    store.reload().expect("Reload store failed");
+    store
+        .reload()
+        .map_err(|e| format!("Reload store failed: {}", e))?;
 
     match store
         .get("slack_tokens")
