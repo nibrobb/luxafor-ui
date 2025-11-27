@@ -11,10 +11,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'ubuntu-latest'
-            args: ''
-          - platform: 'windows-latest'
-            args: ''
+#          - platform: 'ubuntu-latest'
+#            args: ''
+#          - platform: 'windows-latest'
+#            args: ''
           - platform: 'macos-latest' # for Arm based macs (M1 and above).
             args: '--target aarch64-apple-darwin'
           - platform: 'macos-latest' # for Intel based macs.
@@ -35,7 +35,7 @@ jobs:
           targets: wasm32-unknown-unknown ${{ matrix.platform == 'macos-latest' && ',aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Install cargo-binstall
-        run: cargo install cargo-binstall
+        uses: cargo-bins/cargo-binstall@v1.16.2
 
       - name: Install binaries
         run: cargo binstall tauri-cli@2 trunk wasm-bindgen-cli
