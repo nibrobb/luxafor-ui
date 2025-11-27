@@ -62,8 +62,8 @@ async fn set_light_color(
     let s = color.to_lowercase();
     match s.as_str() {
         "off" => device.turn_off().map_err(|e| e.to_string()),
-        _ => {
-            if let Ok(parsed_color) = SolidColor::from_str(s.as_str()) {
+        color_str => {
+            if let Ok(parsed_color) = SolidColor::from_str(color_str) {
                 let res = device
                     .set_solid_color(parsed_color.clone())
                     .map_err(|e| e.to_string());
@@ -101,7 +101,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             #[cfg(feature = "tracing")]
             tracing::info!("Settings path: {:?}", settings_path);
 
-            let handle = app.app_handle().clone();
+            // let handle = app.app_handle().clone();
 
             #[allow(unused_mut)]
             let mut settings_json_default = std::collections::HashMap::new();
@@ -125,28 +125,30 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .authors(Some(vec![AUTHOR.into()]))
                 .comments(Some(COMMENTS))
                 .copyright(Some(COPYRIGHT))
-                .icon(Some(handle.default_window_icon().unwrap().clone()))
+                .icon(Some(
+                    app.app_handle().default_window_icon().unwrap().clone(),
+                ))
                 .build();
 
-            let about_i = PredefinedMenuItem::about(&handle, Some("About"), Some(about_meta))?;
+            let about_i = PredefinedMenuItem::about(app, Some("About"), Some(about_meta))?;
 
-            let quit_i = MenuItemBuilder::with_id("quit", "Quit").build(&handle)?;
+            let quit_i = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
 
-            let luxafor_ui_i = MenuItemBuilder::with_id("luxafor_ui", PKG_NAME).build(&handle)?;
+            let luxafor_ui_i = MenuItemBuilder::with_id("luxafor_ui", PKG_NAME).build(app)?;
 
             #[cfg(feature = "slack_sync")]
             let add_to_slack_i =
-                MenuItemBuilder::with_id("add_to_slack", "Add to Slack").build(&handle)?;
+                MenuItemBuilder::with_id("add_to_slack", "Add to Slack").build(app)?;
 
-            let menu = MenuBuilder::new(&handle)
+            let menu = MenuBuilder::new(app)
                 .items(&[
                     &luxafor_ui_i,
                     &about_i,
                     #[cfg(feature = "slack_sync")]
-                    &PredefinedMenuItem::separator(&handle)?,
+                    &PredefinedMenuItem::separator(app)?,
                     #[cfg(feature = "slack_sync")]
                     &add_to_slack_i,
-                    &PredefinedMenuItem::separator(&handle)?,
+                    &PredefinedMenuItem::separator(app)?,
                     &quit_i,
                 ])
                 .build()?;
@@ -155,7 +157,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .menu(&menu)
                 .tooltip(PKG_NAME)
                 .show_menu_on_left_click(true)
-                .icon(handle.default_window_icon().unwrap().clone())
+                .icon(app.app_handle().default_window_icon().unwrap().clone())
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "luxafor_ui" => {
                         if let Some(window) = app.get_webview_window("main") {
@@ -174,7 +176,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                                 let auth_session = slack_api::SlackAuthSession::new()
                                     .init_session()
                                     .await
-                                    .expect("Could not initialize Slack Auth session");
+                                    .unwrap_or_else(|e| {
+                                        panic!("Could not initialize Slack Auth session: {}", e)
+                                    });
 
                                 tauri_plugin_opener::open_url(
                                     auth_session.authorize_url(),
@@ -183,21 +187,21 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                                 .unwrap();
                                 loop {
                                     match auth_session.poll_status().await {
-                                        slack_api::PollingSessionResponse {
+                                        Ok(slack_api::PollingSessionResponse {
                                             status: slack_api::PollStatus::Pending,
                                             ..
-                                        } => {
+                                        }) => {
                                             #[cfg(feature = "tracing")]
                                             tracing::debug!("Authorization pending...");
                                             //  Wait a bit before polling again
                                             tokio::time::sleep(std::time::Duration::from_secs(5))
                                                 .await;
                                         }
-                                        slack_api::PollingSessionResponse {
+                                        Ok(slack_api::PollingSessionResponse {
                                             status: slack_api::PollStatus::Ok,
                                             tokens,
                                             ..
-                                        } => {
+                                        }) => {
                                             #[cfg(feature = "tracing")]
                                             tracing::info!("Authorization successful!");
 
@@ -206,7 +210,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                                                 tracing::debug!("Received tokens:\n{:#?}", tokens);
 
                                                 slack_api::store_tokens(store_handle, tokens)
-                                                    .expect("Could not store tokens");
+                                                    .unwrap_or_else(|e| {
+                                                        panic!("Could not store tokens: {}", e);
+                                                    });
                                             }
                                             break;
                                         }
@@ -250,7 +256,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     }
                     _ => {}
                 })
-                .build(&handle)?;
+                .build(app)?;
             Ok(())
         })
         .on_window_event(|window, event| {
