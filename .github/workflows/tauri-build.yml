@@ -38,7 +38,7 @@ jobs:
         uses: cargo-bins/cargo-binstall@v1.16.2
 
       - name: Install binaries
-        run: cargo binstall tauri-cli@2 trunk wasm-bindgen-cli
+        run: cargo binstall -y tauri-cli@2 trunk wasm-bindgen-cli
 
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
