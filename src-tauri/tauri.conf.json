@@ -9,6 +9,13 @@
     "beforeBuildCommand": "trunk build --release",
     "frontendDist": "../dist"
   },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [ "luxafor-ui" ]
+      }
+    }
+  },
   "app": {
     "withGlobalTauri": true,
     "windows": [
@@ -34,26 +41,26 @@
     "longDescription": "This application gives you a system tray icon/app-indicator to control the Luxafor Flag as well as a neat graphical user interface with assorted colors to chose from",
     "linux": {
       "deb": {
-            "depends": ["udev"],
-            "files": {
-              "/etc/udev/rules.d/99-luxafor-ui.rules": "extra/99-luxafor-ui.rules"
-            },
-            "postInstallScript": "scripts/reload-udev",
-            "postRemoveScript": "scripts/reload-udev",
-            "provides": ["luxafor-ui"],
-            "changelog": "extra/changelog.gz"
+        "depends": ["udev"],
+        "files": {
+          "/etc/udev/rules.d/99-luxafor-ui.rules": "extra/99-luxafor-ui.rules"
         },
-        "rpm": {
-            "epoch": 0,
-            "release": "alpha",
-            "depends": ["udev"],
-            "files": {
-              "/etc/udev/rules.d/99-luxafor-ui.rules": "extra/99-luxafor-ui.rules"
-            },
-            "postInstallScript": "scripts/reload-udev",
-            "postRemoveScript": "scripts/reload-udev",
-            "provides": ["luxafor-ui"]
-        }
+        "postInstallScript": "scripts/reload-udev",
+        "postRemoveScript": "scripts/reload-udev",
+        "provides": ["luxafor-ui"],
+        "changelog": "extra/changelog.gz"
+      },
+      "rpm": {
+        "epoch": 0,
+        "release": "alpha",
+        "depends": ["udev"],
+        "files": {
+          "/etc/udev/rules.d/99-luxafor-ui.rules": "extra/99-luxafor-ui.rules"
+        },
+        "postInstallScript": "scripts/reload-udev",
+        "postRemoveScript": "scripts/reload-udev",
+        "provides": ["luxafor-ui"]
+      }
     },
     "active": true,
     "targets": "all",

@@ -92,6 +92,12 @@ impl SlackApiTokens {
             bot_token,
         }
     }
+    pub(crate) fn user(&self) -> Option<&SlackApiTokenValue> {
+        self.user_token.as_ref()
+    }
+    pub(crate) fn bot(&self) -> Option<&SlackApiTokenValue> {
+        self.bot_token.as_ref()
+    }
 }
 
 impl TryFrom<serde_json::Value> for SlackApiTokens {
@@ -245,4 +251,70 @@ where
         serde_json::to_value(tokens.as_ref()).map_err(|e| e.to_string())?,
     );
     store.save().map_err(|e| e.to_string())
+}
+
+pub(crate) enum DeepLinkParseError {
+    ParseError,
+    DomainError,
+    PathError,
+    MissingUserToken,
+    MissingBotToken,
+    IncorrectQueryString,
+    APITestFailed(String),
+}
+
+async fn test_api(token: &SlackApiToken) -> Result<(), String> {
+    let connector = SlackClientHyperConnector::new().unwrap();
+    let client = SlackClient::new(connector);
+    let res = client
+        .run_in_session(token, |s| async move {
+            s.api_test(&SlackApiTestRequest::new()).await
+        })
+        .await
+        .map_err(|e| e.to_string());
+    match res {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e),
+    }
+}
+
+pub(crate) async fn try_parse_deep_link(
+    url: tauri::Url,
+) -> Result<SlackApiTokens, DeepLinkParseError> {
+    if let Some(auth) = url.domain() {
+        if auth != "auth" {
+            return Err(DeepLinkParseError::DomainError);
+        }
+        if url.path() != "/tokens" {
+            return Err(DeepLinkParseError::PathError);
+        }
+        let mut query_pairs = url.query_pairs();
+        if let Some((key1, value1)) = query_pairs.next() {
+            if key1 != "user_token" {
+                Err(DeepLinkParseError::MissingUserToken)
+            } else if let Some((key2, value2)) = query_pairs.next() {
+                if key2 != "bot_token" {
+                    Err(DeepLinkParseError::MissingBotToken)
+                } else {
+                    let user_token = SlackApiToken::new(SlackApiTokenValue(value1.into()));
+                    let bot_token = SlackApiToken::new(SlackApiTokenValue(value2.into()));
+                    // TODO: Test both tokens
+                    if let Err(e) = test_api(&user_token).await {
+                        Err(DeepLinkParseError::APITestFailed(e))
+                    } else {
+                        Ok(SlackApiTokens::new(
+                            Some(user_token.token_value),
+                            Some(bot_token.token_value),
+                        ))
+                    }
+                }
+            } else {
+                Err(DeepLinkParseError::IncorrectQueryString)
+            }
+        } else {
+            Err(DeepLinkParseError::IncorrectQueryString)
+        }
+    } else {
+        Err(DeepLinkParseError::ParseError)
+    }
 }

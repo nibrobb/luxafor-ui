@@ -7,6 +7,7 @@ use tauri::{
     AppHandle, Manager, WindowEvent,
 };
 
+use tauri_plugin_deep_link::DeepLinkExt;
 #[allow(unused_imports)]
 use tauri_plugin_store::StoreExt;
 
@@ -84,7 +85,40 @@ async fn set_light_color(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            #[cfg(feature = "tracing")]
+            tracing::info!("a new app instance was opened with {args:?} and the deep link event was already triggered");
+            // Focus this window
+            let _ = app.get_webview_window("main")
+                .expect("no main window")
+                .set_focus();
+        }))
+        .plugin(tauri_plugin_deep_link::init())
         .setup(move |app| {
+            #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
+            {
+                app.deep_link().register_all()?;
+            }
+            let start_urls = app.deep_link().get_current()?;
+            if let Some(urls) = start_urls {
+                // app was likely started by a deep link
+                println!("deep_link().get_current() URLs: {:?}", urls);
+            }
+            app.deep_link().on_open_url(|event| {
+                let urls = event.urls();
+                println!("deep_link().on_open_url() URLs: {:?}", &urls);
+                tauri::async_runtime::spawn(async move {
+                    let url = urls[0].clone();
+                    if let Ok(tokens) = slack_api::try_parse_deep_link(url).await {
+                        // TODO: Store the tokens
+                        #[cfg(feature = "tracing")]
+                        tracing::info!("Tokens were acquired successfully {:?} {:?}",
+                            tokens.user(), tokens.bot()
+                        );
+                    }
+                });
+            });
+
             #[cfg(feature = "tracing")]
             tracing::info!("Starting Luxafor-ui");
             #[cfg(all(feature = "slack_sync", feature = "tracing"))]
