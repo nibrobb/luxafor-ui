@@ -53,8 +53,7 @@ cargo install --locked --no-default-features --features update_check,rustls trun
 Pro-tip: Consider using installing `tauri-cli` and `trunk` from [binstall](https://github.com/cargo-bins/cargo-binstall) (not suitable for Apple M1 and up)
 ```bash
 cargo install cargo-binstall
-cargo binstall tauri-cli@^2
-cargo binstall trunk
+cargo binstall tauri-cli@^2 trunk
 ```
 
 ## Launch the app in development mode
@@ -62,7 +61,17 @@ cargo binstall trunk
 cargo tauri dev
 ```
 
-## Build bundles for distribution
+## Build an executable without bundling
+```bash
+cargo tauri build --no-bundle
+```
+
+## Build a .deb file for local installation
+```bash
+cargo tauri build --bundles deb
+```
+
+## Build bundles and binaries for distribution depending no your system
 ```bash
 cargo tauri build
 ```
