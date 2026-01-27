@@ -28,7 +28,7 @@ Get your Tauri [prerequisites](https://tauri.app/start/prerequisites/) in order 
 Automatically install required packages
 ```bash
 sudo apt install $(grep -vE "^\s*#" required-packages.apt | tr "\n" " ")
-``
+```
 
 ## NixOS
 Use included `shell.nix` (will need tweaking)
