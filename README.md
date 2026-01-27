@@ -55,23 +55,23 @@ Pro-tip: Consider using installing `tauri-cli` and `trunk` from [binstall](https
 cargo install cargo-binstall
 cargo binstall tauri-cli@^2 trunk
 ```
-
-## Launch the app in development mode
+## Build/bundle
+Launch the app in development mode
 ```bash
 cargo tauri dev
 ```
 
-## Build an executable without bundling
+Build an executable without bundling
 ```bash
 cargo tauri build --no-bundle
 ```
 
-## Build a .deb file for local installation
+Build a .deb file for local installation
 ```bash
 cargo tauri build --bundles deb
 ```
 
-## Build bundles and binaries for distribution depending no your system
+Build bundles and binaries for distribution depending no your system
 ```bash
 cargo tauri build
 ```
