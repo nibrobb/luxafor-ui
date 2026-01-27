@@ -36,7 +36,7 @@
       "deb": {
             "depends": ["udev"],
             "files": {
-              "/etc/udev/rules.d/99-luxafor-ui.rules": "extra/99-luxafor-ui.rules"
+              "/etc/udev/rules.d/99-luxafor-ui.rules": "../udev-rule/99-luxafor-ui.rules"
             },
             "postInstallScript": "scripts/reload-udev",
             "postRemoveScript": "scripts/reload-udev",
@@ -48,7 +48,7 @@
             "release": "alpha",
             "depends": ["udev"],
             "files": {
-              "/etc/udev/rules.d/99-luxafor-ui.rules": "extra/99-luxafor-ui.rules"
+              "/etc/udev/rules.d/99-luxafor-ui.rules": "../udev-rule/99-luxafor-ui.rules"
             },
             "postInstallScript": "scripts/reload-udev",
             "postRemoveScript": "scripts/reload-udev",

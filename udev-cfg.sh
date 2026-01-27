@@ -12,4 +12,5 @@ set -x
 sudo cp ./udev-rule/99-luxafor-ui.rules /etc/udev/rules.d
 # Reload udev
 sudo udevadm control -R
+sudo udevadm trigger
 
