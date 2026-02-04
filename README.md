@@ -24,13 +24,10 @@ See [POST-INSTALL.md](./POST-INSTALL.md)
 ## Build it yourself
 Get your Tauri [prerequisites](https://tauri.app/start/prerequisites/) in order first
 
-## Dependencies (Debian/Ubuntu only)
+## Dependencies (Debian/Ubuntu or others)
+Automatically install required packages
 ```bash
-sudo apt install libgtk-3-dev libgdk3.0-cil-dev libatk1.0-dev libxdo-dev\
- librust-gio-sys-dev librust-pango-sys-dev librust-soup3-sys-dev\
- librust-gdk-pixbuf-sys-dev libjavascriptcoregtk-4.1-dev\
- libwebkit2gtk-4.1-dev \
- libayatana-appindicator3-dev # libappindicator3-dev
+sudo apt install $(grep -vE "^\s*#" required-packages.apt | tr "\n" " ")
 ```
 
 ## NixOS
@@ -56,16 +53,25 @@ cargo install --locked --no-default-features --features update_check,rustls trun
 Pro-tip: Consider using installing `tauri-cli` and `trunk` from [binstall](https://github.com/cargo-bins/cargo-binstall) (not suitable for Apple M1 and up)
 ```bash
 cargo install cargo-binstall
-cargo binstall tauri-cli@^2
-cargo binstall trunk
+cargo binstall tauri-cli@^2 trunk
 ```
-
-## Launch the app in development mode
+## Build/bundle
+Launch the app in development mode
 ```bash
 cargo tauri dev
 ```
 
-## Build bundles for distribution
+Build an executable without bundling
+```bash
+cargo tauri build --no-bundle
+```
+
+Build a .deb file for local installation
+```bash
+cargo tauri build --bundles deb
+```
+
+Build bundles and binaries for distribution depending no your system
 ```bash
 cargo tauri build
 ```

@@ -25,6 +25,7 @@ Or manually copy the included [udev rules file](./udev-rule/99-luxafor-ui.rules)
 sudo cp ./udev-rule/99-luxafor-ui.rules /etc/udev/rules.d
 # Reload udev
 sudo udevadm control -R
+sudo udevadm trigger
 ```
 
 After this, unplug and plug back in the Flag. You should now be able to control the busylight
