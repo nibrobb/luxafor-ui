@@ -8,7 +8,11 @@ use tauri::{
 };
 
 #[cfg(feature = "slack_sync")]
-use {tauri::Listener, tauri_plugin_deep_link::DeepLinkExt};
+use {
+    tauri::Listener,
+    tauri_plugin_deep_link::DeepLinkExt,
+    slack_api::{try_parse_deep_link, store_tokens}
+};
 
 const PKG_NAME: &str = "Luxafor-ui";
 const AUTHOR: &str = "Robin Kristiansen";
@@ -127,18 +131,16 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         println!("deep_link().on_open_url() URLs: {:?}", &urls);
                         let app_handle = app_handle.app_handle().clone();
                         tauri::async_runtime::spawn(async move {
-                            // let app_handle = app.app_handle().clone();
                             let url = urls[0].clone();
-                            match slack_api::try_parse_deep_link(url).await {
+                            match try_parse_deep_link(url).await {
                                 Ok(tokens) => {
-                                    // TODO: Store the tokens
                                     #[cfg(feature = "tracing")]
                                     tracing::info!(
-                                    "\nTokens were acquired successfully\nUser\t{:?}\nBot:\t{:?}\n",
-                                    tokens.user(),
-                                    tokens.bot()
-                                );
-                                    slack_api::store_tokens(app_handle, tokens).unwrap();
+                                        "\nTokens were acquired successfully\nUser\t{:?}\nBot:\t{:?}\n",
+                                        tokens.user_token(),
+                                        tokens.bot_token()
+                                    );
+                                    store_tokens(app_handle, tokens).unwrap();
                                 }
                                 Err(_err) => {
                                     #[cfg(feature = "tracing")]
@@ -147,9 +149,6 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                             }
                         });
                     });
-                app.listen("my-fucking-thing", move |event| {
-                    println!("Event happened {}", event.payload());
-                });
             }
 
             #[cfg(feature = "tracing")]
@@ -167,8 +166,6 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             let settings_path = app_config_dir.join(SETTINGS_FILENAME);
             #[cfg(feature = "tracing")]
             tracing::info!("Settings path: {:?}", settings_path);
-
-            // let handle = app.app_handle().clone();
 
             #[allow(unused_mut)]
             let mut settings_json_default = std::collections::HashMap::new();

@@ -93,13 +93,15 @@ impl SlackApiTokens {
             bot_token,
         }
     }
-    #[allow(unused)]
-    pub(crate) fn user(&self) -> Option<&SlackApiTokenValue> {
-        self.user_token.as_ref()
+    pub(crate) fn user_token(&self) -> Option<SlackApiToken> {
+        self.user_token
+            .as_ref()
+            .map(|token| SlackApiToken::new(token.clone()))
     }
-    #[allow(unused)]
-    pub(crate) fn bot(&self) -> Option<&SlackApiTokenValue> {
-        self.bot_token.as_ref()
+    pub(crate) fn bot_token(&self) -> Option<SlackApiToken> {
+        self.bot_token
+            .as_ref()
+            .map(|token| SlackApiToken::new(token.clone()))
     }
 }
 
@@ -196,20 +198,33 @@ impl Display for DeepLinkParseError {
         f.write_fmt(format_args!("DeepLinkParseError::{}", message))
     }
 }
-
-async fn test_api(token: &SlackApiToken) -> Result<(), String> {
-    let connector = SlackClientHyperConnector::new().unwrap();
-    let client = SlackClient::new(connector);
-    let res = client
+async fn test_token<SC>(client: &SlackClient<SC>, token: &SlackApiToken) -> Result<(), String>
+where
+    SC: SlackClientHttpConnector + Send + Sync,
+{
+    match client
         .run_in_session(token, |s| async move {
             s.api_test(&SlackApiTestRequest::new()).await
         })
         .await
-        .map_err(|e| e.to_string());
-    match res {
+        .map_err(|e| e.to_string())
+    {
         Ok(_) => Ok(()),
         Err(e) => Err(e),
     }
+}
+async fn test_api(tokens: &SlackApiTokens) -> Result<(), String> {
+    let connector = SlackClientHyperConnector::new().unwrap();
+    let client = SlackClient::new(connector);
+
+    if let Some(user_token) = tokens.user_token() {
+        test_token(&client, &user_token).await?;
+    }
+    if let Some(bot_token) = tokens.bot_token() {
+        test_token(&client, &bot_token).await?;
+    }
+
+    Ok(())
 }
 
 pub(crate) async fn try_parse_deep_link(
@@ -231,14 +246,14 @@ pub(crate) async fn try_parse_deep_link(
                 } else {
                     let user_token = SlackApiToken::new(SlackApiTokenValue(value1.into()));
                     let bot_token = SlackApiToken::new(SlackApiTokenValue(value2.into()));
-                    // TODO: Test both tokens
-                    if let Err(e) = test_api(&user_token).await {
+                    let tokens = SlackApiTokens::new(
+                        Some(user_token.token_value),
+                        Some(bot_token.token_value),
+                    );
+                    if let Err(e) = test_api(&tokens).await {
                         Err(APITestFailed(e))
                     } else {
-                        Ok(SlackApiTokens::new(
-                            Some(user_token.token_value),
-                            Some(bot_token.token_value),
-                        ))
+                        Ok(tokens)
                     }
                 }
             } else {
