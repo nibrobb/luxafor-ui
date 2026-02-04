@@ -1,10 +1,11 @@
 use crate::SETTINGS_FILENAME;
 use serde::{Deserialize, Serialize};
 use slack_morphism::prelude::*;
+use std::fmt::{Display, Formatter};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_store::StoreExt;
 
-pub(crate) const SESSION_URL: &str = env!("SLACK_SESSION_URL");
+pub(crate) const SLACK_OAUTH_URL: &str = env!("SLACK_OAUTH_URL");
 
 #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
 pub(crate) async fn status_set(
@@ -92,6 +93,16 @@ impl SlackApiTokens {
             bot_token,
         }
     }
+    pub(crate) fn user_token(&self) -> Option<SlackApiToken> {
+        self.user_token
+            .as_ref()
+            .map(|token| SlackApiToken::new(token.clone()))
+    }
+    pub(crate) fn bot_token(&self) -> Option<SlackApiToken> {
+        self.bot_token
+            .as_ref()
+            .map(|token| SlackApiToken::new(token.clone()))
+    }
 }
 
 impl TryFrom<serde_json::Value> for SlackApiTokens {
@@ -107,91 +118,6 @@ impl TryFrom<serde_json::Value> for SlackApiTokens {
             .and_then(|v| v.as_str())
             .map(|s| s.into());
         Ok(SlackApiTokens::new(user_token, bot_token))
-    }
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug)]
-pub(crate) enum PollStatus {
-    #[serde(rename = "pending")]
-    Pending,
-    #[serde(rename = "invalid")]
-    Invalid,
-    #[serde(rename = "ok")]
-    Ok,
-    #[serde(rename = "error")]
-    Error,
-}
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct PollingSessionResponse {
-    pub(crate) status: PollStatus,
-    pub(crate) tokens: Option<SlackApiTokens>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct SlackAuthSession {
-    #[serde(skip)]
-    client: reqwest::Client,
-    authorize_url: Option<reqwest::Url>,
-    poll_url: Option<reqwest::Url>,
-}
-impl SlackAuthSession {
-    /// Retrieves the authorize_url. Panics if not set.
-    pub(crate) fn authorize_url(&self) -> &reqwest::Url {
-        self.authorize_url
-            .as_ref()
-            .expect("authorize_url was not set")
-    }
-    /// Retrieves the poll_url. Panics if not set.
-    pub(crate) fn poll_url(&self) -> &reqwest::Url {
-        self.poll_url.as_ref().expect("poll_url was not set")
-    }
-    /// Create a new SlackAuthSession. Must be called before [`SlackAuthSession::init_session`]
-    pub(crate) fn new() -> Self {
-        static APP_USER_AGENT: &str =
-            concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
-        Self {
-            client: reqwest::Client::builder()
-                .user_agent(APP_USER_AGENT)
-                .connect_timeout(std::time::Duration::from_secs(5))
-                .build()
-                .expect("Could not build reqwest client"),
-            authorize_url: None,
-            poll_url: None,
-        }
-    }
-    /// Initializes a new SlackAuthSession by making a POST request to the SESSION_URL.
-    /// On success, it returns a SlackAuthSession populated with the response data.
-    /// Must be called AFTER [`SlackAuthSession::new`]
-    pub(crate) async fn init_session(
-        &self,
-    ) -> Result<SlackAuthSession, Box<dyn std::error::Error>> {
-        let response = self
-            .client
-            .request(reqwest::Method::POST, SESSION_URL)
-            .header("Content-Type", "application/json")
-            .send()
-            .await?;
-
-        if response.status() != reqwest::StatusCode::OK {
-            return Err("Could not get session".into());
-        }
-
-        let res_json = response.json::<SlackAuthSession>().await?;
-        #[cfg(feature = "tracing")]
-        tracing::debug!("InitSessionResponse:\n{:#?}", res_json);
-        Ok(res_json)
-    }
-    pub(crate) async fn poll_status(
-        &self,
-    ) -> Result<PollingSessionResponse, Box<dyn std::error::Error + Send + Sync>> {
-        let response = self
-            .client
-            .get(self.poll_url().as_ref())
-            .header("Content-Type", "application/json")
-            .send()
-            .await?;
-        let polling_response = response.json::<PollingSessionResponse>().await?;
-        Ok(polling_response)
     }
 }
 
@@ -245,4 +171,98 @@ where
         serde_json::to_value(tokens.as_ref()).map_err(|e| e.to_string())?,
     );
     store.save().map_err(|e| e.to_string())
+}
+
+pub(crate) enum DeepLinkParseError {
+    ParseError,
+    DomainError,
+    MissingUserToken,
+    MissingBotToken,
+    IncorrectQueryString,
+    APITestFailed(String),
+}
+
+impl Display for DeepLinkParseError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use DeepLinkParseError::*;
+
+        let message = match *self {
+            ParseError => "ParseError".to_string(),
+            DomainError => "DomainError".to_string(),
+            MissingUserToken => "MissingUserToken".to_string(),
+            MissingBotToken => "MissingBotToken".to_string(),
+            IncorrectQueryString => "IncorrectQueryString".to_string(),
+            APITestFailed(ref msg) => format!("APITestFailed({msg})"),
+        };
+
+        f.write_fmt(format_args!("DeepLinkParseError::{}", message))
+    }
+}
+async fn test_token<SC>(client: &SlackClient<SC>, token: &SlackApiToken) -> Result<(), String>
+where
+    SC: SlackClientHttpConnector + Send + Sync,
+{
+    match client
+        .run_in_session(token, |s| async move {
+            s.api_test(&SlackApiTestRequest::new()).await
+        })
+        .await
+        .map_err(|e| e.to_string())
+    {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e),
+    }
+}
+async fn test_api(tokens: &SlackApiTokens) -> Result<(), String> {
+    let connector = SlackClientHyperConnector::new().unwrap();
+    let client = SlackClient::new(connector);
+
+    if let Some(user_token) = tokens.user_token() {
+        test_token(&client, &user_token).await?;
+    }
+    if let Some(bot_token) = tokens.bot_token() {
+        test_token(&client, &bot_token).await?;
+    }
+
+    Ok(())
+}
+
+pub(crate) async fn try_parse_deep_link(
+    url: tauri::Url,
+) -> Result<SlackApiTokens, DeepLinkParseError> {
+    use DeepLinkParseError::*;
+
+    if let Some(auth) = url.domain() {
+        if auth != "auth" {
+            return Err(DomainError);
+        }
+        let mut query_pairs = url.query_pairs();
+        if let Some((key1, value1)) = query_pairs.next() {
+            if key1 != "user_token" {
+                Err(MissingUserToken)
+            } else if let Some((key2, value2)) = query_pairs.next() {
+                if key2 != "bot_token" {
+                    Err(MissingBotToken)
+                } else {
+                    let user_token = SlackApiToken::new(SlackApiTokenValue(value1.into()));
+                    let bot_token = SlackApiToken::new(SlackApiTokenValue(value2.into()));
+                    let tokens = SlackApiTokens::new(
+                        Some(user_token.token_value),
+                        Some(bot_token.token_value),
+                    );
+                    if let Err(e) = test_api(&tokens).await {
+                        Err(APITestFailed(e))
+                    } else {
+                        Ok(tokens)
+                    }
+                }
+            } else {
+                Err(IncorrectQueryString)
+            }
+        } else {
+            Err(IncorrectQueryString)
+        }
+    } else {
+        Err(ParseError)
+    }
 }

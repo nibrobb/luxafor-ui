@@ -7,8 +7,11 @@ use tauri::{
     AppHandle, Manager, WindowEvent,
 };
 
-#[allow(unused_imports)]
-use tauri_plugin_store::StoreExt;
+#[cfg(feature = "slack_sync")]
+use {
+    slack_api::{store_tokens, try_parse_deep_link},
+    tauri_plugin_deep_link::DeepLinkExt,
+};
 
 const PKG_NAME: &str = "Luxafor-ui";
 const AUTHOR: &str = "Robin Kristiansen";
@@ -83,13 +86,75 @@ async fn set_light_color(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let builder = tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+
+    builder = builder
+        .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        #[cfg(feature = "tracing")]
+        tracing::info!("a new app instance was opened with {_args:?} and the deep link event was already triggered");
+        // Focus this window
+        let _ = app.get_webview_window("main")
+            .expect("no main window")
+            .set_focus();
+    }));
+
+    #[cfg(feature = "slack_sync")]
+    {
+        builder = builder
+            .plugin(tauri_plugin_deep_link::init())
+            .plugin(tauri_plugin_opener::init());
+    }
+
+    builder = builder
         .setup(move |app| {
+            #[cfg(all(
+                feature = "slack_sync",
+                any(target_os = "linux", all(debug_assertions, windows))
+            ))]
+            {
+                app.deep_link().register_all()?;
+            }
+
+            #[cfg(feature = "slack_sync")]
+            {
+                let start_urls = app.deep_link().get_current()?;
+                if let Some(urls) = start_urls {
+                    // app was likely started by a deep link
+                    println!("deep_link().get_current() URLs: {:?}", urls);
+                }
+                let app_handle = app.app_handle().clone();
+                app.deep_link()
+                    .on_open_url(move |event: tauri_plugin_deep_link::OpenUrlEvent| {
+                        let urls = event.urls();
+                        println!("deep_link().on_open_url() URLs: {:?}", &urls);
+                        let app_handle = app_handle.app_handle().clone();
+                        tauri::async_runtime::spawn(async move {
+                            let url = urls[0].clone();
+                            match try_parse_deep_link(url).await {
+                                Ok(tokens) => {
+                                    #[cfg(feature = "tracing")]
+                                    tracing::info!(
+                                        "\nTokens were acquired successfully\nUser\t{:?}\nBot:\t{:?}\n",
+                                        tokens.user_token(),
+                                        tokens.bot_token()
+                                    );
+                                    store_tokens(app_handle, tokens).unwrap();
+                                }
+                                Err(_err) => {
+                                    #[cfg(feature = "tracing")]
+                                    tracing::error!("{}", _err);
+                                }
+                            }
+                        });
+                    });
+            }
+
             #[cfg(feature = "tracing")]
             tracing::info!("Starting Luxafor-ui");
             #[cfg(all(feature = "slack_sync", feature = "tracing"))]
             {
-                tracing::debug!("SESSION_URL: {}", slack_api::SESSION_URL);
+                tracing::debug!("SLACK_OAUTH_URL: {}", slack_api::SLACK_OAUTH_URL);
             }
 
             let app_config_dir = app
@@ -100,8 +165,6 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             let settings_path = app_config_dir.join(SETTINGS_FILENAME);
             #[cfg(feature = "tracing")]
             tracing::info!("Settings path: {:?}", settings_path);
-
-            // let handle = app.app_handle().clone();
 
             #[allow(unused_mut)]
             let mut settings_json_default = std::collections::HashMap::new();
@@ -170,68 +233,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     "add_to_slack" => {
                         #[cfg(feature = "tracing")]
                         tracing::debug!("Add to Slack pressed");
-                        let store_handle = app.app_handle().clone();
-                        tauri::async_runtime::spawn(async {
-                            let add_to_slack_task = async {
-                                let auth_session = slack_api::SlackAuthSession::new()
-                                    .init_session()
-                                    .await
-                                    .unwrap_or_else(|e| {
-                                        panic!("Could not initialize Slack Auth session: {}", e)
-                                    });
 
-                                tauri_plugin_opener::open_url(
-                                    auth_session.authorize_url(),
-                                    None::<&str>,
-                                )
-                                .unwrap();
-                                loop {
-                                    match auth_session.poll_status().await {
-                                        Ok(slack_api::PollingSessionResponse {
-                                            status: slack_api::PollStatus::Pending,
-                                            ..
-                                        }) => {
-                                            #[cfg(feature = "tracing")]
-                                            tracing::debug!("Authorization pending...");
-                                            //  Wait a bit before polling again
-                                            tokio::time::sleep(std::time::Duration::from_secs(5))
-                                                .await;
-                                        }
-                                        Ok(slack_api::PollingSessionResponse {
-                                            status: slack_api::PollStatus::Ok,
-                                            tokens,
-                                            ..
-                                        }) => {
-                                            #[cfg(feature = "tracing")]
-                                            tracing::info!("Authorization successful!");
-
-                                            if let Some(tokens) = tokens {
-                                                #[cfg(feature = "tracing")]
-                                                tracing::debug!("Received tokens:\n{:#?}", tokens);
-
-                                                slack_api::store_tokens(store_handle, tokens)
-                                                    .unwrap_or_else(|e| {
-                                                        panic!("Could not store tokens: {}", e);
-                                                    });
-                                            }
-                                            break;
-                                        }
-                                        _ => {} // Ignore all other statuses
-                                    }
-                                }
-                            };
-                            if tokio::time::timeout(
-                                std::time::Duration::from_mins(5),
-                                add_to_slack_task,
-                            )
-                            .await
-                            .is_err()
-                            {
-                                // TODO: Notify user of timeout
-                                #[cfg(feature = "tracing")]
-                                tracing::error!("Add to Slack task timed out!");
-                            }
-                        });
+                        tauri_plugin_opener::open_url(slack_api::SLACK_OAUTH_URL, None::<&str>)
+                            .unwrap();
                     }
                     "quit" => {
                         app.exit(0);
@@ -267,14 +271,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 }
             }
         })
-        .plugin(tauri_plugin_store::Builder::default().build());
+        .invoke_handler(tauri::generate_handler![set_light_color,]);
 
-    #[cfg(feature = "slack_sync")]
-    let builder = builder.plugin(tauri_plugin_opener::init());
-
-    builder
-        .invoke_handler(tauri::generate_handler![set_light_color,])
-        .run(tauri::generate_context!())?;
+    builder.run(tauri::generate_context!())?;
 
     Ok(())
 }
