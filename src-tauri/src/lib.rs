@@ -9,9 +9,8 @@ use tauri::{
 
 #[cfg(feature = "slack_sync")]
 use {
-    tauri::Listener,
+    slack_api::{store_tokens, try_parse_deep_link},
     tauri_plugin_deep_link::DeepLinkExt,
-    slack_api::{try_parse_deep_link, store_tokens}
 };
 
 const PKG_NAME: &str = "Luxafor-ui";
