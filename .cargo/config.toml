@@ -1,2 +1,2 @@
 [env]
-SLACK_SESSION_URL = "https://nibrobb.dev/api/slack/session"
+SLACK_OAUTH_URL = "https://www.nibrobb.dev/oauth/slack"
