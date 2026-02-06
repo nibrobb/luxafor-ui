@@ -41,7 +41,7 @@
     "longDescription": "This application gives you a system tray icon/app-indicator to control the Luxafor Flag as well as a neat graphical user interface with assorted colors to chose from",
     "linux": {
       "deb": {
-        "depends": ["libudev"],
+        "depends": ["libudev1"],
         "files": {
           "/etc/udev/rules.d/99-luxafor-ui.rules": "../udev-rule/99-luxafor-ui.rules"
         },
@@ -53,7 +53,7 @@
       "rpm": {
         "epoch": 0,
         "release": "alpha",
-        "depends": ["libudev"],
+        "depends": ["libudev1"],
         "files": {
           "/etc/udev/rules.d/99-luxafor-ui.rules": "../udev-rule/99-luxafor-ui.rules"
         },
