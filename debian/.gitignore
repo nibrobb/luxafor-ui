@@ -1,2 +1,9 @@
 /pool
 /dists
+/output/
+Release
+Release.gpg
+InRelease
+*.deb
+Packages
+Packages.gz
