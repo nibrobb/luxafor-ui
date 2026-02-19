@@ -1,0 +1,4 @@
+Origin: foo
+Destination: bar
+Codename: foobar
+Architectures: "foo bar baz"

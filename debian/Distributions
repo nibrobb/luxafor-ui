@@ -1,7 +1,0 @@
-Origin: luxafor-ui
-Label: nibrobb luxafor-ui
-Suite: %codename%
-Codename: %codename%
-Architectures: %arch%
-Components: main
-Description: Nibrobb's Debian repository
