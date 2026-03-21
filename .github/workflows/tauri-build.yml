@@ -12,13 +12,13 @@ jobs:
       matrix:
         include:
           - platform: 'ubuntu-latest'
-            args: ''
+            rust_target: x86_64-unknown-linux-gnu
           - platform: 'windows-latest'
-            args: ''
-          - platform: 'macos-latest' # for Arm based Macs (M1 and above).
-            args: '--target aarch64-apple-darwin'
-          - platform: 'macos-latest' # for Intel based Macs.
-            args: '--target x86_64-apple-darwin'
+            rust_target: x86_64-pc-windows-msvc
+          - platform: 'macos-latest'
+            rust_target: aarch64-apple-darwin
+          - platform: 'macos-latest'
+            rust_target: x86_64-apple-darwin
     
     runs-on: ${{ matrix.platform }}
     steps:
@@ -29,10 +29,17 @@ jobs:
         with:
           node-version: lts/*
 
+#      - name: Cache Rust
+#        uses: Swatinem/rust-cache@v2.8.2
+#        with:
+#          key: luxafor-ui-tauri-${{ matrix.platform }}-${{ matrix.rust_target }}
+#          shared-key: deps-tauri-${{ matrix.rust_target }}
+#          cache-on-failure: false
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-unknown-unknown ${{ matrix.platform == 'macos-latest' && ',aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: wasm32-unknown-unknown, ${{ matrix.rust_target }}
 
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@v1.16.2
@@ -52,9 +59,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__-alpha # the action automatically replaces \_\_VERSION\_\_ with the app version.
-          releaseName: 'Luxafor-ui v__VERSION__-alpha'
+          tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
+          releaseName: 'Luxafor-ui v__VERSION__'
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
+          assetNamePattern: '[name]-[version]-${{ matrix.rust_target }}[ext]'
           prerelease: true
-          args: ${{ matrix.args }}
+          args: '--target ${{ matrix.rust_target }}'
