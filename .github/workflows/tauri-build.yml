@@ -56,5 +56,6 @@ jobs:
           releaseName: 'Luxafor-ui v__VERSION__-alpha'
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
+          assetNamePattern: '[name]-[version]-${{ matrix.rust_target }}[ext]'
           prerelease: true
           args: ${{ matrix.args }}
