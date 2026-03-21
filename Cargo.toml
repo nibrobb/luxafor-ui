@@ -1,10 +1,10 @@
 [package]
 name = "luxafor-ui-frontend"
-version = "0.1.0"
-edition = "2021"
-description = "Luxafor-ui frontend"
-authors = ["Robin Kristiansen"]
-license = "MIT"
+description = "Luxafor-ui Leptos frontend"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
@@ -18,3 +18,5 @@ console_error_panic_hook = "0.1.7"
 
 [workspace]
 members = ["src-tauri"]
+resolver = "3"
+package = { version = "0.2.0", edition = "2024", authors = ["Robin Kristiansen"], license = "MIT" }

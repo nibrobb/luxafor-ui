@@ -1,10 +1,10 @@
 use std::str::FromStr;
 
-use luxafor::{usb_hid::USBDeviceDiscovery, Device, SolidColor};
+use luxafor::{Device, SolidColor, usb_hid::USBDeviceDiscovery};
 use tauri::{
+    AppHandle, Manager, WindowEvent,
     menu::{AboutMetadataBuilder, MenuBuilder, MenuItemBuilder, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, WindowEvent,
 };
 
 #[cfg(feature = "slack_sync")]
@@ -264,12 +264,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let Some(main_window) = window.app_handle().get_webview_window("main") {
-                if let WindowEvent::CloseRequested { api, .. } = event {
+            if let Some(main_window) = window.app_handle().get_webview_window("main")
+                && let WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
                     main_window.hide().unwrap();
                 }
-            }
         })
         .invoke_handler(tauri::generate_handler![set_light_color,]);
 

@@ -1,9 +1,10 @@
 [package]
 name = "luxafor-ui"
-version = "0.1.0"
-edition = "2021"
-description = "Luxafor-ui"
-authors = ["Robin Kristiansen"]
+description = "Luxafor-ui Tauri app"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 
 [features]
 default = []
