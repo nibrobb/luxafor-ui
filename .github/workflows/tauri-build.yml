@@ -15,9 +15,9 @@ jobs:
             rust_target: x86_64-unknown-linux-gnu
           - platform: 'windows-latest'
             rust_target: x86_64-pc-windows-msvc
-          - platform: 'macos-latest'
+          - platform: 'macos-26'
             rust_target: aarch64-apple-darwin
-          - platform: 'macos-latest'
+          - platform: 'macos-26-intel'
             rust_target: x86_64-apple-darwin
     
     runs-on: ${{ matrix.platform }}
