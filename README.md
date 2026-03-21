@@ -11,21 +11,23 @@
 Go to [Releases](https://github.com/nibrobb/luxafor-ui/releases), expand 'Assets', then choose the distribution that is right for your system.
 If you are on Mac, good luck.
 
+## Slack integration
+Control your busylight directly from Slack!
 
-### Post-install 
+> [!NOTE]
+> Luxafor-ui must be running when adding to slack since the local app stores the users access tokens
+
+# Post-install 
 Really only relevant for versions of Luxafor-ui < v0.1.0-alpha.2 and distros not supporting .deb or .rpm packages
 See [POST-INSTALL.md](./POST-INSTALL.md)
 
 ## Build it yourself
 Get your Tauri [prerequisites](https://tauri.app/start/prerequisites/) in order first
 
-## Dependencies (Debian/Ubuntu only)
+## Dependencies (Debian/Ubuntu or others)
+Automatically install required packages
 ```bash
-sudo apt install libgtk-3-dev libgdk3.0-cil-dev libatk1.0-dev libxdo-dev\
- librust-gio-sys-dev librust-pango-sys-dev librust-soup3-sys-dev\
- librust-gdk-pixbuf-sys-dev libjavascriptcoregtk-4.1-dev\
- libwebkit2gtk-4.1-dev \
- libappindicator3-dev # libayatana-appindicator3-dev
+sudo apt install $(grep -vE "^\s*#" required-packages.apt | tr "\n" " ")
 ```
 
 ## NixOS
@@ -51,16 +53,25 @@ cargo install --locked --no-default-features --features update_check,rustls trun
 Pro-tip: Consider using installing `tauri-cli` and `trunk` from [binstall](https://github.com/cargo-bins/cargo-binstall) (not suitable for Apple M1 and up)
 ```bash
 cargo install cargo-binstall
-cargo binstall tauri-cli@^2
-cargo binstall trunk
+cargo binstall tauri-cli@^2 trunk
 ```
-
-## Launch the app in development mode
+## Build/bundle
+Launch the app in development mode
 ```bash
 cargo tauri dev
 ```
 
-## Build bundles for distribution
+Build an executable without bundling
+```bash
+cargo tauri build --no-bundle
+```
+
+Build a .deb file for local installation
+```bash
+cargo tauri build --bundles deb
+```
+
+Build bundles and binaries for distribution depending no your system
 ```bash
 cargo tauri build
 ```

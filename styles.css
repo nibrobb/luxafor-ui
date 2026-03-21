@@ -72,25 +72,6 @@ html, body {
   padding:         0 var(--container-side-padding); /* Add inner spacing */
 }
 
-.logo {
-  height:      6em;
-  will-change: filter;
-  transition:  0.75s;
-}
-
-.logo.leptos:hover {
-  filter: drop-shadow(0 0 2em #a82e20);
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-#logo-row {
-  display:         flex;
-  justify-content: center;
-}
-
 a {
   font-weight:     500;
   color:           var(--primary-color);
@@ -113,25 +94,33 @@ button {
   font-weight:      500;
   font-family:      inherit;
   width:            100%;
-  --btn-width:      150px;
+  --btn-width:      120px;
   max-width:        var(--btn-width);
   min-width:        var(--btn-width);
   padding:          0.6em 1.2em;
   color:            var(--text-color);
   background-color: var(--button-bg);
-  transition:       all 0.2s ease-in-out;
+  transition:       all 50ms ease-out;
   box-shadow:       0 2px 2px rgba(0, 0, 0, 0.2);
   outline:          none;
   box-sizing:       border-box;
 }
 
+button.selected {
+  background-color: var(--btn-color) !important;
+  color: var(--btn-text-hover) !important;
+  box-shadow:       0 0 10px 5px var(--btn-color) !important;
+}
+
 button:hover {
   border-color: var(--primary-color);
+  box-shadow: none;
 }
 
 button:active {
   border-color:     var(--primary-color);
   background-color: var(--button-active-bg);
+  box-shadow:       0 0 20px 10px var(--btn-color);
 }
 
 /* Dynamic button color */
@@ -144,7 +133,6 @@ button[data-color]:hover,
 button[data-color]:active {
   border-color:     var(--btn-color);
   background-color: var(--btn-color);
-  box-shadow:       0 0 20px 5px var(--btn-color);
   color:            var(--btn-text-hover);
 }
 

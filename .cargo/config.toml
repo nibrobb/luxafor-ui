@@ -1,0 +1,2 @@
+[env]
+SLACK_OAUTH_URL = "https://www.nibrobb.dev/oauth/slack"

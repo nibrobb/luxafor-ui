@@ -11,22 +11,39 @@ extern "C" {
     async fn invoke(cmd: &str, args: JsValue) -> JsValue;
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize, Serialize)]
 struct ColorArgs<'a> {
     color: &'a str,
 }
 
+async fn invoke_set_color(color: String) {
+    let color1 = color.to_owned();
+    let args = serde_wasm_bindgen::to_value(&ColorArgs { color: &color1 }).unwrap();
+    spawn_local(async move {
+        invoke("set_light_color", args.clone()).await;
+    });
+}
+
 #[component]
-fn ColorButton(color: &'static str) -> impl IntoView {
-    let change_color = move |color1: &str| {
-        let color2 = color1.to_string();
-        spawn_local(async move {
-            let args = serde_wasm_bindgen::to_value(&ColorArgs { color: &color2 }).unwrap();
-            invoke("set_light_color", args).await;
-        });
-    };
+fn ColorButton(color: &'static str, selected_color: RwSignal<Option<String>>) -> impl IntoView {
+    let change_color_action = Action::new(move |input: &String| {
+        selected_color.set(Some(input.clone()));
+        invoke_set_color(input.clone())
+    });
+
     view! {
-        <button data-color={color} on:click=move |_| change_color(color)>
+        <button
+        data-color={color}
+        class=move || {
+            if selected_color.get().as_ref().is_some_and(|c| c == color) {
+                format!("selected {}", color.to_lowercase())
+            } else {
+                "".to_string()
+            }
+        }
+        on:click=move |_| {
+            change_color_action.dispatch(color.to_owned());
+        } >
             {color}
         </button>
     }
@@ -34,24 +51,17 @@ fn ColorButton(color: &'static str) -> impl IntoView {
 
 #[component]
 pub fn App() -> impl IntoView {
+    let selected_color = RwSignal::new(None::<String>);
     view! {
         <main class="container">
-            <div id="logo-row">
-                <a href="https://tauri.app" target="_blank">
-                    <img width="60" src="public/tauri.svg" class="logo tauri" alt="Tauri logo"/>
-                </a>
-                <a href="https://docs.rs/leptos/" target="_blank">
-                    <img width="75" src="public/leptos.svg" class="logo leptos" alt="Leptos logo"/>
-                </a>
-            </div>
-            <ColorButton color="Red"/>
-            <ColorButton color="Green"/>
-            <ColorButton color="Blue"/>
-            <ColorButton color="Yellow"/>
-            <ColorButton color="Cyan"/>
-            <ColorButton color="Magenta"/>
-            <ColorButton color="White"/>
-            <ColorButton color="Off"/>
+            <ColorButton color="Red" selected_color=selected_color/>
+            <ColorButton color="Green" selected_color=selected_color/>
+            <ColorButton color="Blue" selected_color=selected_color/>
+            <ColorButton color="Yellow" selected_color=selected_color/>
+            <ColorButton color="Cyan" selected_color=selected_color/>
+            <ColorButton color="Magenta" selected_color=selected_color/>
+            <ColorButton color="White" selected_color=selected_color/>
+            <ColorButton color="Off" selected_color=selected_color/>
         </main>
     }
 }

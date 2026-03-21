@@ -1,0 +1,20 @@
+display_information:
+  name: Status sync for Luxafor-ui
+features:
+  bot_user:
+    display_name: Status sync
+    always_online: true
+oauth_config:
+  redirect_urls:
+    - https://www.nibrobb.dev/oauth/slack/
+  scopes:
+    user:
+      - users.profile:read
+      - users.profile:write
+    bot:
+      - chat:write
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
+

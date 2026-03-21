@@ -1,70 +1,226 @@
 use std::str::FromStr;
-use tauri::{
-    menu::{MenuBuilder, MenuItemBuilder},
-    tray::{MouseButton, MouseButtonState, TrayIconEvent},
-};
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use luxafor::{usb_hid::USBDeviceDiscovery, Device, SolidColor};
-
 use tauri::{
-    menu::{AboutMetadataBuilder, PredefinedMenuItem},
-    tray::TrayIconBuilder,
-    Manager, WindowEvent,
+    menu::{AboutMetadataBuilder, MenuBuilder, MenuItemBuilder, PredefinedMenuItem},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    AppHandle, Manager, WindowEvent,
 };
 
+#[cfg(feature = "slack_sync")]
+use {
+    slack_api::{store_tokens, try_parse_deep_link},
+    tauri_plugin_deep_link::DeepLinkExt,
+};
+
+const PKG_NAME: &str = "Luxafor-ui";
+const AUTHOR: &str = "Robin Kristiansen";
+const COMMENTS: &str = "A simple app to control your Luxafor Flag";
+const COPYRIGHT: &str = include_str!("copyright.txt");
+const SETTINGS_FILENAME: &str = "settings.json";
+
+#[cfg(feature = "slack_sync")]
+mod slack_api;
+
+#[cfg(feature = "slack_sync")]
+use slack_morphism::SlackUserProfile;
+
+#[cfg(feature = "slack_sync")]
+fn color_to_profile(color: SolidColor) -> SlackUserProfile {
+    // TODO: Get mappings from `settings.json`
+    match color {
+        SolidColor::Red => SlackUserProfile::new()
+            .with_status_text("Opptatt".into())
+            .with_status_emoji(":no_entry:".into()),
+        SolidColor::Green => SlackUserProfile::new()
+            .with_status_text("".into())
+            .with_status_emoji("".into()),
+        SolidColor::Blue => SlackUserProfile::new()
+            .with_status_text("I\'m blue, baby!".into())
+            .with_status_emoji(":blueberries:".into()),
+        SolidColor::Cyan => SlackUserProfile::new()
+            .with_status_text("".into())
+            .with_status_emoji(":raccoon:".into()),
+        // TODO: Add all colors
+        _ => SlackUserProfile::new()
+            .with_status_text("".into())
+            .with_status_emoji("".into()),
+    }
+}
+
+// TODO: Implement this
+// fn profile_to_color(profile: &SlackUserProfile) -> SolidColor { ... }
+
+#[cfg_attr(feature = "tracing", tracing::instrument(skip(app)))]
 #[tauri::command]
-fn set_light_color(color: &str) -> Result<(), String> {
+async fn set_light_color(
+    #[allow(unused_variables)] app: AppHandle,
+    color: &str,
+) -> Result<(), String> {
     let discovery = USBDeviceDiscovery::new().map_err(|e| e.to_string())?;
     let device = discovery.device().map_err(|e| e.to_string())?;
+    #[cfg(feature = "tracing")]
+    tracing::debug!("Found device: {}", device.id());
 
     let s = color.to_lowercase();
-    let result = match s.as_str() {
+    match s.as_str() {
         "off" => device.turn_off().map_err(|e| e.to_string()),
-        _ => {
-            if let Ok(parsed_color) = SolidColor::from_str(&s) {
-                device
-                    .set_solid_color(parsed_color)
-                    .map_err(|e| e.to_string())
+        color_str => {
+            if let Ok(parsed_color) = SolidColor::from_str(color_str) {
+                let res = device
+                    .set_solid_color(parsed_color.clone())
+                    .map_err(|e| e.to_string());
+                #[cfg(feature = "slack_sync")]
+                {
+                    let profile = color_to_profile(parsed_color);
+                    let tokens = slack_api::retrieve_tokens(app.clone())?;
+                    slack_api::slack_set_profile(profile, tokens).await?;
+                }
+                res
             } else {
-                return Err(String::from("Invalid color"));
+                Err(String::from("Invalid color"))
             }
         }
-    };
-
-    result
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    tauri::Builder::default()
-        .setup(move |app| {
-            let handle = app.handle();
+pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut builder = tauri::Builder::default();
 
-            let aboutmeta = AboutMetadataBuilder::new()
-                .name(Some("Luxafor-ui"))
-                .authors(Some(vec![String::from("Robin Kristiansen")]))
-                .comments(Some("A simple app to control your Luxafor Flag"))
-                .copyright(Some("Luxafor-ui is not affiliated with, endorsed by, or associated with Luxafor. Luxafor is a registered trademark of GreyNut SIA."))
-                .icon(Some(handle.default_window_icon().unwrap().clone()))
+    builder = builder
+        .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        #[cfg(feature = "tracing")]
+        tracing::info!("a new app instance was opened with {_args:?} and the deep link event was already triggered");
+        // Focus this window
+        let _ = app.get_webview_window("main")
+            .expect("no main window")
+            .set_focus();
+    }));
+
+    #[cfg(feature = "slack_sync")]
+    {
+        builder = builder
+            .plugin(tauri_plugin_deep_link::init())
+            .plugin(tauri_plugin_opener::init());
+    }
+
+    builder = builder
+        .setup(move |app| {
+            #[cfg(all(
+                feature = "slack_sync",
+                any(target_os = "linux", all(debug_assertions, windows))
+            ))]
+            {
+                app.deep_link().register_all()?;
+            }
+
+            #[cfg(feature = "slack_sync")]
+            {
+                let start_urls = app.deep_link().get_current()?;
+                if let Some(urls) = start_urls {
+                    // app was likely started by a deep link
+                    println!("deep_link().get_current() URLs: {:?}", urls);
+                }
+                let app_handle = app.app_handle().clone();
+                app.deep_link()
+                    .on_open_url(move |event: tauri_plugin_deep_link::OpenUrlEvent| {
+                        let urls = event.urls();
+                        println!("deep_link().on_open_url() URLs: {:?}", &urls);
+                        let app_handle = app_handle.app_handle().clone();
+                        tauri::async_runtime::spawn(async move {
+                            let url = urls[0].clone();
+                            match try_parse_deep_link(url).await {
+                                Ok(tokens) => {
+                                    #[cfg(feature = "tracing")]
+                                    tracing::info!(
+                                        "\nTokens were acquired successfully\nUser\t{:?}\nBot:\t{:?}\n",
+                                        tokens.user_token(),
+                                        tokens.bot_token()
+                                    );
+                                    store_tokens(app_handle, tokens).unwrap();
+                                }
+                                Err(_err) => {
+                                    #[cfg(feature = "tracing")]
+                                    tracing::error!("{}", _err);
+                                }
+                            }
+                        });
+                    });
+            }
+
+            #[cfg(feature = "tracing")]
+            tracing::info!("Starting Luxafor-ui");
+            #[cfg(all(feature = "slack_sync", feature = "tracing"))]
+            {
+                tracing::debug!("SLACK_OAUTH_URL: {}", slack_api::SLACK_OAUTH_URL);
+            }
+
+            let app_config_dir = app
+                .path()
+                .app_config_dir()
+                .expect("Failed to resolve app config dir");
+
+            let settings_path = app_config_dir.join(SETTINGS_FILENAME);
+            #[cfg(feature = "tracing")]
+            tracing::info!("Settings path: {:?}", settings_path);
+
+            #[allow(unused_mut)]
+            let mut settings_json_default = std::collections::HashMap::new();
+            #[cfg(feature = "slack_sync")]
+            settings_json_default.insert(
+                "slack_tokens".to_string(),
+                serde_json::to_value(slack_api::SlackApiTokens::default())?,
+            );
+            // TODO: Insert color/profile-mappings
+
+            #[allow(unused)]
+            let store = tauri_plugin_store::StoreBuilder::new(app, settings_path)
+                .defaults(settings_json_default)
+                .build()?;
+
+            #[cfg(feature = "tracing")]
+            tracing::debug!("Store contents:\n{:#?}", store.entries());
+
+            let about_meta = AboutMetadataBuilder::new()
+                .name(Some(PKG_NAME))
+                .authors(Some(vec![AUTHOR.into()]))
+                .comments(Some(COMMENTS))
+                .copyright(Some(COPYRIGHT))
+                .icon(Some(
+                    app.app_handle().default_window_icon().unwrap().clone(),
+                ))
                 .build();
-            let about_i = PredefinedMenuItem::about(handle, Some("About"), Some(aboutmeta))?;
-            let quit_i = MenuItemBuilder::with_id("quit", "Quit").build(handle)?;
-            let luxafor_ui_i =
-                MenuItemBuilder::with_id("luxafor_ui", "Luxafor-ui").build(handle)?;
-            let menu = MenuBuilder::new(handle)
+
+            let about_i = PredefinedMenuItem::about(app, Some("About"), Some(about_meta))?;
+
+            let quit_i = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+
+            let luxafor_ui_i = MenuItemBuilder::with_id("luxafor_ui", PKG_NAME).build(app)?;
+
+            #[cfg(feature = "slack_sync")]
+            let add_to_slack_i =
+                MenuItemBuilder::with_id("add_to_slack", "Add to Slack").build(app)?;
+
+            let menu = MenuBuilder::new(app)
                 .items(&[
                     &luxafor_ui_i,
                     &about_i,
-                    &PredefinedMenuItem::separator(handle)?,
+                    #[cfg(feature = "slack_sync")]
+                    &PredefinedMenuItem::separator(app)?,
+                    #[cfg(feature = "slack_sync")]
+                    &add_to_slack_i,
+                    &PredefinedMenuItem::separator(app)?,
                     &quit_i,
                 ])
                 .build()?;
+
             let _tray = TrayIconBuilder::new()
                 .menu(&menu)
-                .tooltip("Luxafor-ui")
+                .tooltip(PKG_NAME)
                 .show_menu_on_left_click(true)
-                .icon(handle.default_window_icon().unwrap().clone())
+                .icon(app.app_handle().default_window_icon().unwrap().clone())
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "luxafor_ui" => {
                         if let Some(window) = app.get_webview_window("main") {
@@ -73,13 +229,25 @@ pub fn run() {
                             window.set_focus().unwrap();
                         }
                     }
+                    #[cfg(feature = "slack_sync")]
+                    "add_to_slack" => {
+                        #[cfg(feature = "tracing")]
+                        tracing::debug!("Add to Slack pressed");
+
+                        tauri_plugin_opener::open_url(slack_api::SLACK_OAUTH_URL, None::<&str>)
+                            .unwrap();
+                    }
                     "quit" => {
                         app.exit(0);
                     }
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| match event {
-                    TrayIconEvent::Click {
+                    TrayIconEvent::DoubleClick {
+                        button: MouseButton::Left,
+                        ..
+                    }
+                    | TrayIconEvent::Click {
                         button: MouseButton::Left,
                         button_state: MouseButtonState::Up,
                         ..
@@ -92,22 +260,20 @@ pub fn run() {
                     }
                     _ => {}
                 })
-                .build(handle)?;
+                .build(app)?;
             Ok(())
         })
         .on_window_event(|window, event| {
             if let Some(main_window) = window.app_handle().get_webview_window("main") {
-                match event {
-                    WindowEvent::CloseRequested { api, .. } => {
-                        api.prevent_close();
-                        main_window.hide().unwrap();
-                    }
-                    _ => {}
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    main_window.hide().unwrap();
                 }
             }
         })
-        .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![set_light_color])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .invoke_handler(tauri::generate_handler![set_light_color,]);
+
+    builder.run(tauri::generate_context!())?;
+
+    Ok(())
 }
