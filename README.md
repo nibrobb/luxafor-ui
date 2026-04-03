@@ -11,20 +11,10 @@
 ### Automatic installer (Debian/Ubuntu)
 
 ```bash
-curl -fsSL 'https://github.com/nibrobb/luxafor-ui/releases/download/debian/luxafor-ui-archive-keyring.asc' \
-  | gpg --dearmor \
-  | sudo tee /etc/apt/keyrings/luxafor-ui-archive-keyring.pgp >/dev/null \
-&& sudo cat <<EOF > /etc/apt/sources.list.d/luxafor-ui.sources \
-&& sudo apt update \
-&& sudo apt install -y luxafor-ui
-Types: deb
-URIs: https://github.com/nibrobb/luxafor-ui/releases/download/debian/
-Suites: ./
-Components: 
-Signed-By: /etc/apt/keyrings/luxafor-ui-archive-keyring.pgp
-EOF
+curl -fsSL https://www.nibrobb.dev/luxafor-ui.sh | sudo bash
 ```
 
+### Manual install
 Go to [Releases](https://github.com/nibrobb/luxafor-ui/releases), expand 'Assets', then choose the distribution that is right for your system.
 If you are on Mac, good luck.
 
