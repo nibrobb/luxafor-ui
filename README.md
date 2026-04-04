@@ -11,7 +11,7 @@
 ### Automatic installer (Debian/Ubuntu)
 
 ```bash
-curl -fsSL https://www.nibrobb.dev/luxafor-ui.sh | sudo bash
+curl -fsSL https://www.nibrobb.dev/luxafor-ui.sh | sudo sh
 ```
 
 ### Manual install
