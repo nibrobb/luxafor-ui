@@ -16,8 +16,7 @@ set -x
 # Get the OS code-name ("noble" on Ubuntu 24.04 LTS)
 codename="$(lsb_release -sc 2>/dev/null)"
 
-# TODO: Make this also more dynamic
-deb_arch=amd64
+deb_arch=$(dpkg --print-architecture)
 
 cat <<EOF > Distributions
 Origin: luxafor-ui
