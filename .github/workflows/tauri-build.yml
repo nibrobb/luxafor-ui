@@ -29,12 +29,12 @@ jobs:
         with:
           node-version: lts/*
 
-#      - name: Cache Rust
-#        uses: Swatinem/rust-cache@v2.8.2
-#        with:
-#          key: luxafor-ui-tauri-${{ matrix.platform }}-${{ matrix.rust_target }}
-#          shared-key: deps-tauri-${{ matrix.rust_target }}
-#          cache-on-failure: false
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2.8.2
+        with:
+          key: luxafor-ui-tauri-${{ matrix.platform }}-${{ matrix.rust_target }}
+          shared-key: deps-tauri-${{ matrix.rust_target }}
+          cache-on-failure: false
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
