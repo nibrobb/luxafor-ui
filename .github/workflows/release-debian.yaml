@@ -1,0 +1,14 @@
+# Great inspiration from AdityaGarg8's workflow
+# https://github.com/AdityaGarg8/git-credential-email/blob/09baf37a0cd459072c399209f7d275d07a505c99/.github/workflows/release.yml
+
+name: (placeholder) Release debian repository
+on:
+  workflow_dispatch
+
+jobs:
+  nothing:
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Nothing
+      run: | 
+        : nothing
