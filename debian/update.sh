@@ -2,8 +2,7 @@
 
 set -x
 
-[[ -n $GPG_SIGNING_KEY ]] || exit 1
-[[ -n $GPG_SIGNING_EMAIL ]] || exit 1
+[[ -n $GPG_SIGNING_KEY && -n $GPG_SIGNING_EMAIL ]] || exit 1
 
 # sudo apt update
 # sudo apt install -y wget git gpg apt-utils dpkg-dev
@@ -18,20 +17,20 @@ codename="$(lsb_release -sc 2>/dev/null)"
 
 deb_arch=$(dpkg --print-architecture)
 
-cat <<EOF > Distributions
+cat <<EOF > Release
 Origin: luxafor-ui
 Label: nibrobb luxafor-ui
 Suite: $codename
 Codename: $codename
 Architectures: $deb_arch
 Components: main
-Description: Graphical desktop application for controlling a Luxafor FLAG­™
+Description: Graphical desktop application for controlling a Luxafor FLAG™
 EOF
 
 cp ../target/release/bundle/deb/*.deb ./
 # gh release download latest -R nibrobb/luxafor-ui # or something
 
-apt-ftparchive --arch $deb_arch packages ./ > Packages
+apt-ftparchive --arch "$deb_arch" packages ./ > Packages
 
 gzip -kf Packages
 
@@ -39,8 +38,8 @@ cat Distributions > Release
 
 apt-ftparchive release . >> Release
 
-gpg --default-key "${GPG_SIGNING_EMAIL}" --clearsign --yes -o InRelease Release
-gpg --default-key "${GPG_SIGNING_EMAIL}" --armor --detach-sign --sign --yes -o Release.gpg Release
+gpg --default-key "$GPG_SIGNING_EMAIL" --clearsign --yes -o InRelease Release
+gpg --default-key "$GPG_SIGNING_EMAIL" --armor --detach-sign --sign --yes -o Release.gpg Release
 
 mkdir artifacts
 cp InRelease Release Release.gpg Packages Packages.gz ./artifacts/

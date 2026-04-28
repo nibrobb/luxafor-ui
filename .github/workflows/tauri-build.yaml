@@ -1,4 +1,4 @@
-name: 'Build and publish bundles'
+name: Build and publish bundles
 
 on:
   workflow_dispatch:
@@ -11,15 +11,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'ubuntu-latest'
+          - platform: ubuntu-latest
             rust_target: x86_64-unknown-linux-gnu
-          - platform: 'windows-latest'
+          - platform: windows-latest
             rust_target: x86_64-pc-windows-msvc
-          - platform: 'macos-26'
+          - platform: macos-26
             rust_target: aarch64-apple-darwin
-          - platform: 'macos-26-intel'
+          - platform: macos-26-intel
             rust_target: x86_64-apple-darwin
-    
+    outputs:
+      app_version: ${{ steps.tauri-build.outputs.appVersion }}
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v6
@@ -55,7 +56,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev patchelf libudev-dev libayatana-appindicator3-dev
         
-      - uses: tauri-apps/tauri-action@v0
+      - id: tauri-build
+        name: Tauri build
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -66,3 +69,61 @@ jobs:
           assetNamePattern: '[name]-[version]-${{ matrix.rust_target }}[ext]'
           prerelease: true
           args: '--target ${{ matrix.rust_target }}'
+
+  Release-DEB:
+    permissions:
+      contents: write
+    needs: publish-tauri
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v6
+        with:
+          ref: v${{ needs.publish-tauri.outputs.app_version }}
+
+      - name: Configure PGP key
+        run: |
+          echo -n "$GPG_SIGNING_KEY" | base64 -di | gpg --import
+        env:
+          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+
+      - name: Prepare release
+        id: publish
+        env:
+          GPG_SIGNING_EMAIL: ${{ secrets.GPG_SIGNING_EMAIL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sudo apt update
+          DEBIAN_FRONTEND=noninteractive sudo apt install -y wget gpg apt-utils dpkg-dev
+          codename="$(lsb_release -sc 2>/dev/null)"
+          deb_arch=$(dpkg --print-architecture)
+          
+          git checkout v${{ needs.publish-tauri.outputs.app_version }}
+          cd ${{ github.workspace }}
+          
+          cat <<EOF > Release
+          Origin: luxafor-ui
+          Label: nibrobb luxafor-ui
+          Suite: ./
+          Codename: $codename
+          Architectures: $deb_arch
+          Components: main
+          Description: Graphical desktop application for controlling a Luxafor FLAG™
+          EOF
+          
+          # gh release download debian --dir debian --repo nibrobb/luxafor-ui
+          gh release download                               \
+            v${{ needs.publish-tauri.outputs.app_version }} \
+            --repo nibrobb/luxafor-ui                       \
+            --pattern '*.deb'
+          
+          mv -v ./*.deb ./debian
+          cd debian
+          apt-ftparchive packages ./ > Packages
+          gzip -kf Packages
+          gpg --default-key "$GPG_SIGNING_EMAIL" --armor --detach-sign --sign --yes -o Release.gpg Release
+          gpg --default-key "$GPG_SIGNING_EMAIL" --clearsign --yes -o InRelease Release
+          
+          gpg --export --armor FA3B95B56D698443 > luxafor-ui-archive-keyring.asc          
+          
+          gh release upload debian ./* --clobber --repo nibrobb/luxafor-ui
