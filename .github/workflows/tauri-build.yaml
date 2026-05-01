@@ -46,15 +46,17 @@ jobs:
         uses: cargo-bins/cargo-binstall@v1.16.2
 
       - name: Install binaries
+        shell: bash
         run: cargo binstall -y tauri-cli@2 trunk wasm-bindgen-cli
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
+        shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev patchelf libudev-dev libayatana-appindicator3-dev
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev patchelf libudev-dev libayatana-appindicator3-dev
         
       - id: tauri-build
         name: Tauri build
@@ -82,6 +84,7 @@ jobs:
           ref: v${{ needs.publish-tauri.outputs.app_version }}
 
       - name: Configure PGP key
+        shell: bash
         run: |
           base64 -di <<< "$GPG_SIGNING_KEY" | gpg --import
         env:
@@ -92,9 +95,10 @@ jobs:
         env:
           GPG_SIGNING_EMAIL: ${{ secrets.GPG_SIGNING_EMAIL }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
-          sudo apt update
-          DEBIAN_FRONTEND=noninteractive sudo apt install -y wget gpg apt-utils dpkg-dev
+          sudo apt-get update
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y wget gpg apt-utils dpkg-dev
           codename="$(lsb_release -sc 2>/dev/null)"
           deb_arch=$(dpkg --print-architecture)
           
@@ -115,10 +119,13 @@ jobs:
           # gh release download debian --dir debian --repo nibrobb/luxafor-ui
           gh release download                               \
             v${{ needs.publish-tauri.outputs.app_version }} \
+            --dir debian                                    \
             --repo nibrobb/luxafor-ui                       \
             --pattern '*.deb'
           
-          mv -v ./*.deb ./debian
+          # mv -v ./*.deb ./debian
+          # Assert we only have 1 .deb file
+          [[ $(ls -1 debian | wc -l) == 1 ]] || exit 1
           cd debian
           apt-ftparchive packages ./ > Packages
           gzip -kf Packages
