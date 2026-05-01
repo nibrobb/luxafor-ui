@@ -83,7 +83,7 @@ jobs:
 
       - name: Configure PGP key
         run: |
-          echo -n "$GPG_SIGNING_KEY" | base64 -di | gpg --import
+          base64 -di <<< "$GPG_SIGNING_KEY" | gpg --import
         env:
           GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
 
@@ -98,6 +98,7 @@ jobs:
           codename="$(lsb_release -sc 2>/dev/null)"
           deb_arch=$(dpkg --print-architecture)
           
+          # Do we need this? Doesn't the action above already checkout the tag
           git checkout v${{ needs.publish-tauri.outputs.app_version }}
           cd ${{ github.workspace }}
           
@@ -121,9 +122,9 @@ jobs:
           cd debian
           apt-ftparchive packages ./ > Packages
           gzip -kf Packages
-          gpg --default-key "$GPG_SIGNING_EMAIL" --armor --detach-sign --sign --yes -o Release.gpg Release
-          gpg --default-key "$GPG_SIGNING_EMAIL" --clearsign --yes -o InRelease Release
+          gpg --default-key "$GPG_SIGNING_EMAIL" --yes --armor --detach-sign --sign -o Release.gpg Release
+          gpg --default-key "$GPG_SIGNING_EMAIL" --yes --clearsign -o InRelease Release
           
-          gpg --export --armor FA3B95B56D698443 > luxafor-ui-archive-keyring.asc          
+          gpg --armor --export FA3B95B56D698443 > luxafor-ui-archive-keyring.asc
           
           gh release upload debian ./* --clobber --repo nibrobb/luxafor-ui
