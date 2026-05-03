@@ -1,25 +1,26 @@
-name: 'Build and publish bundles'
+name: Build and publish bundles
 
 on:
   workflow_dispatch:
 
 jobs:
-  publish-tauri:
+  Release-GitHub:
     permissions:
       contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: 'ubuntu-latest'
+          - platform: ubuntu-latest
             rust_target: x86_64-unknown-linux-gnu
-          - platform: 'windows-latest'
+          - platform: windows-latest
             rust_target: x86_64-pc-windows-msvc
-          - platform: 'macos-26'
+          - platform: macos-26
             rust_target: aarch64-apple-darwin
-          - platform: 'macos-26-intel'
+          - platform: macos-26-intel
             rust_target: x86_64-apple-darwin
-    
+    outputs:
+      app_version: ${{ steps.tauri-build.outputs.appVersion }}
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v6
@@ -29,12 +30,12 @@ jobs:
         with:
           node-version: lts/*
 
-#      - name: Cache Rust
-#        uses: Swatinem/rust-cache@v2.8.2
-#        with:
-#          key: luxafor-ui-tauri-${{ matrix.platform }}-${{ matrix.rust_target }}
-#          shared-key: deps-tauri-${{ matrix.rust_target }}
-#          cache-on-failure: false
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2.9.1
+        with:
+          key: luxafor-ui-tauri-${{ matrix.platform }}-${{ matrix.rust_target }}
+          shared-key: deps-tauri-${{ matrix.rust_target }}
+          cache-on-failure: false
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -45,24 +46,91 @@ jobs:
         uses: cargo-bins/cargo-binstall@v1.16.2
 
       - name: Install binaries
+        shell: bash
         run: cargo binstall -y tauri-cli@2 trunk wasm-bindgen-cli
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
+        shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev patchelf libudev-dev libayatana-appindicator3-dev
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev patchelf libudev-dev libayatana-appindicator3-dev
         
-      - uses: tauri-apps/tauri-action@v0
+      - id: tauri-build
+        name: Tauri build
+        uses: tauri-apps/tauri-action@v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'Luxafor-ui v__VERSION__'
           releaseBody: 'See the assets to download this version and install.'
-          releaseDraft: true
+          generateReleaseNotes: true
           assetNamePattern: '[name]-[version]-${{ matrix.rust_target }}[ext]'
-          prerelease: true
           args: '--target ${{ matrix.rust_target }}'
+
+  Release-DEB:
+    permissions:
+      contents: write
+    needs: [Release-GitHub]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v6
+        with:
+          ref: v${{ needs.Release-GitHub.outputs.app_version }}
+
+      - name: Configure PGP key
+        shell: bash
+        run: |
+          base64 -di <<< "$GPG_SIGNING_KEY" | gpg --import
+        env:
+          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+
+      - name: Prepare release
+        id: publish
+        env:
+          GPG_SIGNING_EMAIL: ${{ secrets.GPG_SIGNING_EMAIL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          sudo apt-get update
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y wget gpg apt-utils dpkg-dev
+          codename="$(lsb_release -sc 2>/dev/null)"
+          deb_arch=$(dpkg --print-architecture)
+          
+          # Do we need this? Doesn't the action above already checkout the tag
+          # git checkout v${{ needs.Release-GitHub.outputs.app_version }}
+          # cd ${{ github.workspace }}
+          
+          cat <<EOF > Release
+          Origin: luxafor-ui
+          Label: nibrobb luxafor-ui
+          Suite: ./
+          Codename: $codename
+          Architectures: $deb_arch
+          Components: main
+          Description: Graphical desktop application for controlling a Luxafor FLAG™
+          EOF
+          
+          # gh release download debian --dir debian --repo nibrobb/luxafor-ui
+          gh release download                                \
+            v${{ needs.Release-GitHub.outputs.app_version }} \
+            --dir debian                                     \
+            --repo nibrobb/luxafor-ui                        \
+            --pattern '*.deb'
+          
+          # Assert we only have 1 .deb file
+          [[ $(ls -1 debian | wc -l) == 1 ]] || exit 1
+          cd debian
+          apt-ftparchive packages ./ > Packages
+          gzip -kf Packages
+          gpg --default-key "$GPG_SIGNING_EMAIL" --yes --armor --detach-sign --sign -o Release.gpg Release
+          gpg --default-key "$GPG_SIGNING_EMAIL" --yes --clearsign -o InRelease Release
+
+          mkdir -v artifacts
+          cp -v ./*.deb ?(In)Release{.gpg,} Packages{.gz,} luxafor-ui-archive-keyring.{asc,pgp} artifacts/
+          
+          gh release upload debian ./artifacts/* --clobber --repo nibrobb/luxafor-ui

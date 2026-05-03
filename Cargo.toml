@@ -19,4 +19,4 @@ console_error_panic_hook = "0.1.7"
 [workspace]
 members = ["src-tauri"]
 resolver = "3"
-package = { version = "0.2.0", edition = "2024", authors = ["Robin Kristiansen"], license = "MIT" }
+package = { version = "0.2.2", edition = "2024", authors = ["Robin Kristiansen"], license = "MIT" }
