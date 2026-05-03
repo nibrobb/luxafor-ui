@@ -38,8 +38,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          : sudo apt-get update
-          : DEBIAN_FRONTEND=noninteractive sudo apt-get install -y wget gpg apt-utils dpkg-dev
+          # sudo apt-get update
+          # DEBIAN_FRONTEND=noninteractive sudo apt-get install -y wget gpg apt-utils dpkg-dev
           codename="$(lsb_release -sc 2>/dev/null)"
           deb_arch=$(dpkg --print-architecture)
           
