@@ -74,7 +74,10 @@ jobs:
           assetNamePattern: '[name]-[version]-${{ matrix.rust_target }}[ext]'
           args: '--target ${{ matrix.rust_target }}'
 
-      - name: Release DEB
-        uses: ./.github/workflows/release-deb.yaml
-        with:
-          tag: v${{ needs.Release-GitHub.outputs.app_version }}
+
+  call-Release-DEB:
+    name: Release DEB
+    needs: [Release-GitHub]
+    uses: ./.github/workflows/release-deb.yaml
+    with:
+      tag: v${{ needs.Release-GitHub.outputs.app_version }}
