@@ -77,6 +77,8 @@ jobs:
 
   call-Release-DEB:
     name: Release DEB
+    permissions:
+      contents: write
     needs: [Release-GitHub]
     uses: ./.github/workflows/release-deb.yaml
     with:
