@@ -44,7 +44,8 @@ jobs:
           codename="$(lsb_release -sc 2>/dev/null)"
           deb_arch=$(dpkg --print-architecture)
           
-          cat <<EOF > Release
+          mkdir -vp ./debian
+          cat <<EOF > ./debian/Release
           Origin: luxafor-ui
           Label: nibrobb luxafor-ui
           Suite: ./
