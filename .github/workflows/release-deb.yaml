@@ -1,0 +1,73 @@
+name: Release DEB
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to use for the release (must include the v prefix, e.g., v1.2.3)'
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+
+jobs:
+  publish-deb:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Configure PGP key
+        shell: bash
+        run: |
+          base64 -di <<< "$GPG_SIGNING_KEY" | gpg --import
+        env:
+          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+
+      - name: Prepare release
+        id: publish
+        env:
+          GPG_SIGNING_EMAIL: ${{ secrets.GPG_SIGNING_EMAIL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          : sudo apt-get update
+          : DEBIAN_FRONTEND=noninteractive sudo apt-get install -y wget gpg apt-utils dpkg-dev
+          codename="$(lsb_release -sc 2>/dev/null)"
+          deb_arch=$(dpkg --print-architecture)
+          
+          cat <<EOF > Release
+          Origin: luxafor-ui
+          Label: nibrobb luxafor-ui
+          Suite: ./
+          Codename: $codename
+          Architectures: $deb_arch
+          Components: main
+          Description: Graphical desktop application for controlling a Luxafor FLAG™
+          EOF
+          
+          gh release download         \
+            ${{ inputs.tag }}         \
+            --dir debian              \
+            --repo nibrobb/luxafor-ui \
+            --pattern '*.deb'
+          
+          # Assert there is only 1 .deb file
+          [[ $(ls -1 debian | wc -l) == 1 ]] || exit 1
+          
+          cd debian
+          apt-ftparchive packages ./ > Packages
+          gzip -kf Packages
+          gpg --default-key "$GPG_SIGNING_EMAIL" --yes --armor --detach-sign --sign -o Release.gpg Release
+          gpg --default-key "$GPG_SIGNING_EMAIL" --yes --clearsign -o InRelease Release
+          
+          mkdir -v artifacts
+          cp -v ./*.deb ?(In)Release{.gpg,} Packages{.gz,} luxafor-ui-archive-keyring.{asc,pgp} artifacts/
+          gh release upload debian ./artifacts/* --clobber --repo nibrobb/luxafor-ui
