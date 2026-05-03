@@ -68,5 +68,5 @@ jobs:
           gpg --default-key "$GPG_SIGNING_EMAIL" --yes --clearsign -o InRelease Release
           
           mkdir -v artifacts
-          cp -v ./*.deb ?(In)Release{.gpg,} Packages{.gz,} luxafor-ui-archive-keyring.{asc,pgp} artifacts/
+          cp -v ./*.deb InRelease Release{.gpg,} Packages{.gz,} luxafor-ui-archive-keyring.{asc,pgp} artifacts/
           gh release upload debian ./artifacts/* --clobber --repo nibrobb/luxafor-ui
