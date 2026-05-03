@@ -2,6 +2,9 @@ name: Build and publish bundles
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - release
 
 jobs:
   Release-GitHub:
