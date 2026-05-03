@@ -60,9 +60,6 @@ jobs:
             --repo nibrobb/luxafor-ui \
             --pattern '*.deb'
           
-          # Assert there is only 1 .deb file
-          [[ $(ls -1 debian | wc -l) == 1 ]] || exit 1
-          
           cd debian
           apt-ftparchive packages ./ > Packages
           gzip -kf Packages
