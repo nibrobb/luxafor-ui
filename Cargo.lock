@@ -2659,7 +2659,7 @@ dependencies = [
 
 [[package]]
 name = "luxafor-ui"
-version = "0.2.0"
+version = "0.2.2"
 dependencies = [
  "luxafor",
  "reqwest",
@@ -2679,7 +2679,7 @@ dependencies = [
 
 [[package]]
 name = "luxafor-ui-frontend"
-version = "0.2.0"
+version = "0.2.2"
 dependencies = [
  "console_error_panic_hook",
  "js-sys",

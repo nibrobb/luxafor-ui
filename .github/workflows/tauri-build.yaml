@@ -30,12 +30,12 @@ jobs:
         with:
           node-version: lts/*
 
-#      - name: Cache Rust
-#        uses: Swatinem/rust-cache@v2.8.2
-#        with:
-#          key: luxafor-ui-tauri-${{ matrix.platform }}-${{ matrix.rust_target }}
-#          shared-key: deps-tauri-${{ matrix.rust_target }}
-#          cache-on-failure: false
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2.9.1
+        with:
+          key: luxafor-ui-tauri-${{ matrix.platform }}-${{ matrix.rust_target }}
+          shared-key: deps-tauri-${{ matrix.rust_target }}
+          cache-on-failure: false
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -60,16 +60,15 @@ jobs:
         
       - id: tauri-build
         name: Tauri build
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'Luxafor-ui v__VERSION__'
           releaseBody: 'See the assets to download this version and install.'
-          releaseDraft: true
+          generateReleaseNotes: true
           assetNamePattern: '[name]-[version]-${{ matrix.rust_target }}[ext]'
-          prerelease: true
           args: '--target ${{ matrix.rust_target }}'
 
   Release-DEB:
