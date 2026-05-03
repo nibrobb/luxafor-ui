@@ -57,7 +57,7 @@ jobs:
         run: |
           sudo apt-get update
           DEBIAN_FRONTEND=noninteractive sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev patchelf libudev-dev libayatana-appindicator3-dev
-        
+
       - id: tauri-build
         name: Tauri build
         uses: tauri-apps/tauri-action@v0.6.2
