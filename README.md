@@ -8,6 +8,13 @@
 # Getting started
 
 ## Installation
+### Automatic installer (Debian/Ubuntu)
+
+```bash
+curl -fsSL https://www.nibrobb.dev/luxafor-ui.sh | sudo sh
+```
+
+### Manual install
 Go to [Releases](https://github.com/nibrobb/luxafor-ui/releases), expand 'Assets', then choose the distribution that is right for your system.
 If you are on Mac, good luck.
 
