@@ -6,6 +6,7 @@ on:
       draft:
         type: boolean
         default: false
+        description: Create a draft release
   push:
     branches:
       - release
@@ -76,7 +77,7 @@ jobs:
           releaseName: 'Luxafor-ui v__VERSION__'
           releaseBody: 'See the assets to download this version and install.'
           generateReleaseNotes: true
-          releaseDraft: ${{ inputs.draft }}
+          releaseDraft: ${{ fromJSON(inputs.draft) }}
           assetNamePattern: '[name]-[version]-${{ matrix.rust_target }}[ext]'
           args: '--target ${{ matrix.rust_target }}'
 
