@@ -31,39 +31,28 @@ jobs:
         env:
           GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
 
-      - name: Prepare release
-        id: publish
+      - name: Release
         env:
           GPG_SIGNING_EMAIL: ${{ secrets.GPG_SIGNING_EMAIL }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -x
-          # sudo apt-get update
-          # DEBIAN_FRONTEND=noninteractive sudo apt-get install -y wget gpg apt-utils dpkg-dev
-          codename="$(lsb_release -sc 2>/dev/null)"
+          codename=$(lsb_release -sc 2>/dev/null)
           deb_arch=$(dpkg --print-architecture)
-          
-          mkdir -vp ./debian
-          cat <<EOF > ./debian/Release
-          Origin: luxafor-ui
-          Label: nibrobb luxafor-ui
-          Suite: ./
-          Codename: $codename
-          Architectures: $deb_arch
-          Components: main
-          Description: Graphical desktop application for controlling a Luxafor FLAG™
-          EOF
           
           gh release download         \
             ${{ inputs.tag }}         \
-            --dir debian              \
+            --dir deb_repo            \
             --repo nibrobb/luxafor-ui \
             --pattern '*.deb'
           
-          cd debian
+          cd deb_repo
           apt-ftparchive packages ./ > Packages
           gzip -kf Packages
+          
+          apt-ftparchive release ./ > Release
+          
           gpg --default-key "$GPG_SIGNING_EMAIL" --yes --armor --detach-sign --sign -o Release.gpg Release
           gpg --default-key "$GPG_SIGNING_EMAIL" --yes --clearsign -o InRelease Release
           
