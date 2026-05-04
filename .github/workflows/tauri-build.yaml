@@ -7,9 +7,10 @@ on:
         type: boolean
         default: false
         description: Create a draft release
-  push:
-    branches:
-      - release
+
+  # push:
+  #   branches:
+  #     - release
 
 jobs:
   Release-GitHub:
