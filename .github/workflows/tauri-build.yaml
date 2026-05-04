@@ -6,9 +6,9 @@ on:
       draft:
         type: boolean
         default: false
-  push:
-    branches:
-      - release
+  # push:
+  #   branches:
+  #     - release
 
 jobs:
   Release-GitHub:
