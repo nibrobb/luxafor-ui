@@ -47,7 +47,7 @@
         "postInstallScript": "scripts/reload-udev",
         "postRemoveScript": "scripts/reload-udev",
         "provides": ["luxafor-ui"],
-        "changelog": "extra/changelog.gz"
+        "changelog": "extra/debian/changelog.Debian"
       },
       "rpm": {
         "epoch": 0,
