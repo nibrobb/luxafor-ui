@@ -63,7 +63,14 @@ jobs:
           gzip -kf Packages
 
           # Create Release file
-          apt-ftparchive release ./ > Release
+          cat <<EOF > Release
+          Origin: luxafor-ui
+          Label: nibrobb luxafor-ui
+          Architectures: amd64
+          Description: Graphical desktop application for controlling a Luxafor FLAG™
+          Changelogs: https://github.com/nibrobb/luxafor-ui/releases/download/debian/Changelog
+          EOF
+          apt-ftparchive release ./ >> Release
 
           # Sign Release file
           gpg --default-key "$GPG_SIGNING_EMAIL" --yes --armor --detach-sign --sign -o Release.gpg Release
