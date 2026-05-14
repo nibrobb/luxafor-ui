@@ -12,6 +12,11 @@ on:
       tag:
         required: true
         type: string
+    secrets:
+      GPG_SIGNING_KEY:
+        required: true
+      GPG_SIGNING_EMAIL:
+        required: true
 
 jobs:
   publish-deb:
@@ -77,3 +82,4 @@ jobs:
           
           # Upload artifacts to release with tag 'debian'
           gh release upload debian ./artifacts/* --clobber --repo nibrobb/luxafor-ui
+
