@@ -71,14 +71,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
+          tagName: v__VERSION__ # the action automatically replaces __VERSION__ with the app version.
           releaseName: 'Luxafor-ui v__VERSION__'
           releaseBody: 'See the assets to download this version and install.'
           generateReleaseNotes: true
           releaseDraft: ${{ fromJSON(inputs.draft) }}
           assetNamePattern: '[name]-[version]-${{ matrix.rust_target }}[ext]'
           args: '--target ${{ matrix.rust_target }}'
-
 
   call-Release-DEB:
     name: Release DEB
@@ -89,3 +88,6 @@ jobs:
     uses: ./.github/workflows/release-deb.yaml
     with:
       tag: v${{ needs.Release-GitHub.outputs.app_version }}
+    secrets:
+      GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+      GPG_SIGNING_EMAIL: ${{ secrets.GPG_SIGNING_EMAIL }}
