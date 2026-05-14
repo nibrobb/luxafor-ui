@@ -41,14 +41,23 @@ jobs:
           codename=$(lsb_release -sc 2>/dev/null)
           deb_arch=$(dpkg --print-architecture)
 
+          # Download latest release
           gh release download         \
             ${{ inputs.tag }}         \
             --dir deb_repo            \
             --repo nibrobb/luxafor-ui \
             --pattern '*.deb'
 
+          # Download existing files in debian repo
+          gh release download         \
+            debian                    \
+            --dir deb_repo            \
+            --repo nibrobb/luxafor-ui \
+            --clobber                 \
+            --pattern '*.deb'
+
           cd deb_repo
-          apt-ftparchive packages ./ > Packages
+          dpkg-scanpackages --multiversion ./ > Packages
           gzip -kf Packages
 
           apt-ftparchive release ./ > Release
@@ -57,6 +66,13 @@ jobs:
           gpg --default-key "$GPG_SIGNING_EMAIL" --yes --clearsign -o InRelease Release
 
           mkdir -v artifacts
-          cp -v ../debian/luxafor-ui-archive-keyring.asc artifacts/
-          cp -v ./*.deb InRelease Release{.gpg,} Packages{.gz,} artifacts/
+          cp -v                                       \
+            ../debian/luxafor-ui-archive-keyring.asc  \
+            ./*.deb                                   \
+            Release                                   \
+            Release.gpg                               \
+            InRelease                                 \
+            Packages                                  \
+            Packages.gz                               \
+            artifacts/
           gh release upload debian ./artifacts/* --clobber --repo nibrobb/luxafor-ui
