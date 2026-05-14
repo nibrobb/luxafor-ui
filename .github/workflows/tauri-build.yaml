@@ -6,11 +6,8 @@ on:
       draft:
         type: boolean
         default: false
+        required: true
         description: "Create a draft release and don't update debian repo"
-
-  # push:
-  #   branches:
-  #     - release
 
 jobs:
   Release-GitHub:
@@ -85,7 +82,7 @@ jobs:
 
   call-Release-DEB:
     name: Release DEB
-    if: inputs.draft == 'false'
+    if: ${{ ! fromJSON(inputs.draft) }}
     permissions:
       contents: write
     needs: [Release-GitHub]
