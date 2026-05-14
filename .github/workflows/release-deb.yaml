@@ -37,11 +37,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          set -x
-          codename=$(lsb_release -sc 2>/dev/null)
-          deb_arch=$(dpkg --print-architecture)
-
-          # Download latest release
+          # Download release using tag
           gh release download         \
             ${{ inputs.tag }}         \
             --dir deb_repo            \
@@ -57,11 +53,14 @@ jobs:
             --pattern '*.deb'
 
           cd deb_repo
+          # Scan for multiple packages and list them in Packages
           dpkg-scanpackages --multiversion ./ > Packages
           gzip -kf Packages
 
+          # Create Release file
           apt-ftparchive release ./ > Release
 
+          # Sign Release file
           gpg --default-key "$GPG_SIGNING_EMAIL" --yes --armor --detach-sign --sign -o Release.gpg Release
           gpg --default-key "$GPG_SIGNING_EMAIL" --yes --clearsign -o InRelease Release
 
@@ -75,4 +74,6 @@ jobs:
             Packages                                  \
             Packages.gz                               \
             artifacts/
+          
+          # Upload artifacts to release with tag 'debian'
           gh release upload debian ./artifacts/* --clobber --repo nibrobb/luxafor-ui
