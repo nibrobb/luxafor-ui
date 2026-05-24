@@ -1,3 +1,9 @@
+luxafor-ui (0.2.5ubuntu1) unknown; urgency=medium
+
+  * Updated dependencies (tauri, serde) and updated upstream GitHub Actions
+
+ -- Robin Kristiansen <robin_k@live.no>  Sun, 24 May 2026 18:45:56 +0200
+
 luxafor-ui (0.2.5) unknown; urgency=medium
 
   * Add changelog
