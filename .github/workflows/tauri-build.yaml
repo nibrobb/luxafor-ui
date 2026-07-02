@@ -76,7 +76,7 @@ jobs:
           releaseBody: 'See the assets to download this version and install.'
           generateReleaseNotes: true
           releaseDraft: ${{ fromJSON(inputs.draft) }}
-          assetNamePattern: '[name]-[version]-${{ matrix.rust_target }}[ext]'
+          releaseAssetNamePattern: '[name]-[version]-${{ matrix.rust_target }}[ext]'
           args: '--target ${{ matrix.rust_target }}'
 
   call-Release-DEB:
