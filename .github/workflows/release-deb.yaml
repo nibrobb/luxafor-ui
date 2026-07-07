@@ -68,7 +68,7 @@ jobs:
           Label: nibrobb luxafor-ui
           Architectures: $(dpkg --print-architecture)
           Description: Graphical desktop application for controlling a Luxafor FLAG™
-          Changelogs: https://github.com/nibrobb/luxafor-ui/releases/download/debian/Changelog
+          Changelogs: https://github.com/nibrobb/luxafor-ui/releases/download/debian/@CHANGEPATH@/../../../Changelog
           EOF
           apt-ftparchive release ./ >> Release
 
