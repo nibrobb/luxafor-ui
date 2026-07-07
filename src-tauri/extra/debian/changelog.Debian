@@ -1,4 +1,11 @@
-luxafor-ui (0.2.5ubuntu1) unknown; urgency=medium
+luxafor-ui (0.2.7) unknown; urgency=high
+
+  * SECURITY UPDATE:
+  * Bump dependency `cmov` from 0.5.3 to 0.5.4
+
+ -- Robin Kristiansen <robin_k@live.no>  Tue, 07 Jul 2026 22:17:06 +0200
+
+luxafor-ui (0.2.5build1) unknown; urgency=medium
 
   * Updated dependencies (tauri, serde) and updated upstream GitHub Actions
 

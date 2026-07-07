@@ -77,8 +77,8 @@ jobs:
           gpg --default-key "$GPG_SIGNING_EMAIL" --yes --clearsign -o InRelease Release
 
           mkdir -v artifacts
-          cp -v ../src-tauri/extra/debian/changelog.Debian artifacts/Changelog
-          gzip -kfc artifacts/Changelog > artifacts/Changelog.gz
+          cp -v ../src-tauri/extra/debian/changelog.Debian ./artifacts/Changelog
+          gzip -kfc ./artifacts/Changelog > ./artifacts/Changelog.gz
           cp -v                                       \
             ../debian/luxafor-ui-archive-keyring.asc  \
             ./*.deb                                   \
