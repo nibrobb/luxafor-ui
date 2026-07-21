@@ -1,3 +1,20 @@
+luxafor-ui (0.2.8) unknown; urgency=medium
+
+  * chore(deps): Bump actions/setup-node from 6 to 7 by @dependabot[bot] in #39
+  * chore(deps): Bump tauri-plugin-single-instance from 2.4.2 to 2.4.3 by @dependabot[bot] in #40
+  * chore(deps): Bump cargo-bins/cargo-binstall from 1.20.1 to 1.21.0 by @dependabot[bot] in #41
+  * chore(deps): Bump slack-morphism from 2.22.0 to 2.23.0 by @dependabot[bot] in #43
+  * chore(deps): Bump tauri-plugin-store from 2.4.3 to 2.4.4 by @dependabot[bot] in #42
+  * chore(deps): Bump serde from 1.0.228 to 1.0.229 by @dependabot[bot] in #44
+  * chore(deps): Bump serde_json from 1.0.150 to 1.0.151 by @dependabot[bot] in #45
+  * chore(deps): Bump tokio from 1.52.3 to 1.53.1 by @dependabot[bot] in #46
+  * chore(deps): Bump serde_with from 3.20.0 to 3.21.0 by @dependabot[bot] in #47
+  * fix: rpm config in tauri.conf.json by @nibrobb
+  * chore(deps): Cargo update by @nibrobb
+
+
+ -- Robin Kristiansen <robin_k@live.no>  Tue, 21 Jul 2026 21:47:01 +0200
+
 luxafor-ui (0.2.7) unknown; urgency=high
 
   * SECURITY UPDATE:
