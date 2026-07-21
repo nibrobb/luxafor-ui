@@ -51,7 +51,7 @@
       },
       "rpm": {
         "epoch": 0,
-        "release": "alpha",
+        "release": "1",
         "depends": ["libudev1"],
         "files": {
           "/etc/udev/rules.d/99-luxafor-ui.rules": "../udev-rule/99-luxafor-ui.rules"
