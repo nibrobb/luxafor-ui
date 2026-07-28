@@ -50,7 +50,7 @@ jobs:
           targets: wasm32-unknown-unknown, ${{ matrix.rust_target }}
 
       - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@v1.21.0
+        uses: cargo-bins/cargo-binstall@v1.21.1
 
       - name: Install binaries
         shell: bash
