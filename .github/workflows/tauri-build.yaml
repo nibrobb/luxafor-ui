@@ -37,7 +37,7 @@ jobs:
           node-version: lts/*
 
       - name: Cache Rust
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: Swatinem/rust-cache@v2.9.2
         with:
           key: luxafor-ui-tauri-${{ matrix.platform }}-${{ matrix.rust_target }}
           shared-key: deps-tauri-${{ matrix.rust_target }}
@@ -50,7 +50,7 @@ jobs:
           targets: wasm32-unknown-unknown, ${{ matrix.rust_target }}
 
       - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@v1.21.1
+        uses: cargo-bins/cargo-binstall@v1.22.0
 
       - name: Install binaries
         shell: bash
