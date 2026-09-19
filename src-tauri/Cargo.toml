@@ -8,7 +8,7 @@ license.workspace = true
 
 [features]
 default = []
-slack_sync = ["dep:slack-morphism", "dep:tauri-plugin-opener", "dep:reqwest", "tokio/time"]
+slack_sync = ["dep:slack-morphism", "dep:tauri-plugin-opener", "tokio/time"]
 tracing = ["dep:tracing", "dep:tracing-subscriber"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -35,7 +35,6 @@ luxafor = { version = "0.3.0", default-features = false, features = ["usb"] }
 slack-morphism = { version = "2.22.0", features = ["hyper"], optional = true}
 tracing = { version = "0.1.41", features = ["log", "log-always"], optional = true}
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"], optional = true}
-reqwest = { version = "0.13.4", features = ["json"], optional = true}
 tokio = { version = "1", optional = true }
 
 [dev-dependencies]
