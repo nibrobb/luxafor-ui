@@ -14,6 +14,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        platform:
+          - ubuntu-26.04
+          - windows-latest
+          - macos-26
+          - macos-26-intel
+        features:
+          - slack_sync
+          - tracing
+          - slack_sync,tracing
+          - default
         include:
           - platform: ubuntu-26.04
             rust_target: x86_64-unknown-linux-gnu
@@ -23,11 +33,6 @@ jobs:
             rust_target: aarch64-apple-darwin
           - platform: macos-26-intel
             rust_target: x86_64-apple-darwin
-        features:
-          - slack_sync
-          - tracing
-          - slack_sync,tracing
-          - default
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout repository
