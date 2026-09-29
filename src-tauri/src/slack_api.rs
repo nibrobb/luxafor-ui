@@ -19,8 +19,7 @@ pub(crate) async fn status_set(
     #[cfg(feature = "tracing")]
     debug!(
         "status_text: {:?}, status_emoji: {:?}",
-        profile.status_text,
-        profile.status_emoji
+        profile.status_text, profile.status_emoji
     );
 
     let client = SlackClient::new(SlackClientHyperConnector::new()?);
@@ -63,8 +62,7 @@ pub(crate) async fn slack_set_profile(
     #[cfg(feature = "tracing")]
     debug!(
         "Attempting Slack profile update: status_text={:?}, status_emoji={:?}",
-        profile.status_text,
-        profile.status_emoji
+        profile.status_text, profile.status_emoji
     );
 
     if let Some(token) = tokens.user_token {
@@ -225,18 +223,20 @@ impl SlackSettings {
     }
 
     fn parse_tokens(value: serde_json::Value) -> Option<SlackApiTokens> {
-        serde_json::from_value::<SlackApiTokens>(value.clone()).ok().or_else(|| {
-            let object = value.as_object()?;
-            let user_token = object
-                .get("user_token")
-                .and_then(serde_json::Value::as_str)
-                .map(|token| SlackApiTokenValue(token.to_string()));
-            let bot_token = object
-                .get("bot_token")
-                .and_then(serde_json::Value::as_str)
-                .map(|token| SlackApiTokenValue(token.to_string()));
-            Some(SlackApiTokens::new(user_token, bot_token))
-        })
+        serde_json::from_value::<SlackApiTokens>(value.clone())
+            .ok()
+            .or_else(|| {
+                let object = value.as_object()?;
+                let user_token = object
+                    .get("user_token")
+                    .and_then(serde_json::Value::as_str)
+                    .map(|token| SlackApiTokenValue(token.to_string()));
+                let bot_token = object
+                    .get("bot_token")
+                    .and_then(serde_json::Value::as_str)
+                    .map(|token| SlackApiTokenValue(token.to_string()));
+                Some(SlackApiTokens::new(user_token, bot_token))
+            })
     }
 
     pub(crate) fn load(app: &AppHandle) -> Result<Self, String> {
@@ -273,7 +273,8 @@ impl SlackSettings {
     pub(crate) fn save(&self, app: &AppHandle) -> Result<(), String> {
         let store_path = resolve_store_path(app)?;
         if let Some(parent_dir) = store_path.parent() {
-            std::fs::create_dir_all(parent_dir).map_err(|e| format!("Could not create settings dir: {}", e))?;
+            std::fs::create_dir_all(parent_dir)
+                .map_err(|e| format!("Could not create settings dir: {}", e))?;
         }
 
         let store = app
@@ -345,11 +346,32 @@ mod tests {
         let settings: SlackSettings = serde_json::from_value(input).unwrap();
 
         assert!(settings.slack_tokens.has_any());
-        assert_eq!(settings.slack_tokens.user_token.as_ref().unwrap().value(), "xoxp-1234567890");
-        assert_eq!(settings.slack_tokens.bot_token.as_ref().unwrap().value(), "xoxb-0987654321");
-        assert_eq!(settings.slack_status_map.get("red").unwrap().status.as_deref(), Some("On a call"));
+        assert_eq!(
+            settings.slack_tokens.user_token.as_ref().unwrap().value(),
+            "xoxp-1234567890"
+        );
+        assert_eq!(
+            settings.slack_tokens.bot_token.as_ref().unwrap().value(),
+            "xoxb-0987654321"
+        );
+        assert_eq!(
+            settings
+                .slack_status_map
+                .get("red")
+                .unwrap()
+                .status
+                .as_deref(),
+            Some("On a call")
+        );
         assert_eq!(settings.slack_status_map.get("green").unwrap().emoji, None);
-        assert!(settings.slack_status_map.get("blue").unwrap().status.is_none());
+        assert!(
+            settings
+                .slack_status_map
+                .get("blue")
+                .unwrap()
+                .status
+                .is_none()
+        );
     }
 
     #[test]
@@ -387,10 +409,9 @@ where
 {
     let settings = SlackSettings::load(&app).unwrap_or_else(|_| SlackSettings::defaults());
     let mut updated_settings = settings;
-    updated_settings.slack_tokens = serde_json::from_value(
-        serde_json::to_value(tokens.as_ref()).map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())?;
+    updated_settings.slack_tokens =
+        serde_json::from_value(serde_json::to_value(tokens.as_ref()).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
     updated_settings.save(&app)
 }
 

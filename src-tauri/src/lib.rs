@@ -63,7 +63,7 @@ async fn set_light_color(
                     if settings.slack_tokens.has_any() {
                         if settings.slack_status_map.is_empty() {
                             slack_api::SlackSettings::warn_missing_status_map(&app);
-                            return Err("Slack status map is empty".into())
+                            return Err("Slack status map is empty".into());
                         } else {
                             let profile = color_to_profile(app.clone(), parsed_color.clone());
                             let tokens = slack_api::retrieve_tokens(app.clone())?;
