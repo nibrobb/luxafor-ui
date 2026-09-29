@@ -1,0 +1,87 @@
+name: Run Rust tests
+on:
+  pull_request:
+    branches:
+      - tauri
+  push:
+    branches:
+      - tauri
+
+jobs:
+  check-formatting:
+    name: Check formatting
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Check formatting
+        working-directory: "${{ github.workspace }}/src-tauri"
+        run: cargo fmt --all -- --check
+
+  check-clippy:
+    name: Check clippy
+    needs: check-formatting
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev patchelf libudev-dev libayatana-appindicator3-dev
+
+      - name: Check clippy
+        working-directory: "${{ github.workspace }}/src-tauri"
+        run: cargo clippy --all -- -D warnings
+
+  test:
+    name: Test (${{ matrix.platform }})
+    needs: check-clippy
+    permissions:
+      contents: read
+      actions: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-26.04
+            rust_target: x86_64-unknown-linux-gnu
+          - platform: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+          - platform: macos-26
+            rust_target: aarch64-apple-darwin
+          - platform: macos-26-intel
+            rust_target: x86_64-apple-darwin
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+
+      - name: Install dependencies (Ubuntu only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev patchelf libudev-dev libayatana-appindicator3-dev
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2.9.2
+        with:
+          workspaces: |
+            src-tauri -> target
+          key: luxafor-ui-tauri-${{ matrix.platform }}-${{ matrix.rust_target }}
+          shared-key: deps-tauri-${{ matrix.rust_target }}
+          cache-on-failure: false
+          cache-bin: false
+
+      - name: Run tests
+        working-directory: src-tauri
+        run: cargo hack test --feature-powerset
+
