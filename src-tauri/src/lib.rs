@@ -19,6 +19,9 @@ const COMMENTS: &str = "A simple app to control your Luxafor Flag";
 const COPYRIGHT: &str = include_str!("copyright.txt");
 const SETTINGS_FILENAME: &str = "settings.json";
 
+#[cfg(feature = "tracing")]
+use tracing::{debug, error, info, instrument};
+
 #[cfg(feature = "slack_sync")]
 mod slack_api;
 
@@ -26,32 +29,16 @@ mod slack_api;
 use slack_morphism::SlackUserProfile;
 
 #[cfg(feature = "slack_sync")]
-fn color_to_profile(color: SolidColor) -> SlackUserProfile {
-    // TODO: Get mappings from `settings.json`
-    match color {
-        SolidColor::Red => SlackUserProfile::new()
-            .with_status_text("Opptatt".into())
-            .with_status_emoji(":no_entry:".into()),
-        SolidColor::Green => SlackUserProfile::new()
-            .with_status_text("".into())
-            .with_status_emoji("".into()),
-        SolidColor::Blue => SlackUserProfile::new()
-            .with_status_text("I\'m blue, baby!".into())
-            .with_status_emoji(":blueberries:".into()),
-        SolidColor::Cyan => SlackUserProfile::new()
-            .with_status_text("".into())
-            .with_status_emoji(":raccoon:".into()),
-        // TODO: Add all colors
-        _ => SlackUserProfile::new()
-            .with_status_text("".into())
-            .with_status_emoji("".into()),
-    }
+fn color_to_profile(app: AppHandle, color: SolidColor) -> SlackUserProfile {
+    slack_api::SlackSettings::load(&app)
+        .unwrap_or_default()
+        .profile_for_color(&color)
 }
 
 // TODO: Implement this
 // fn profile_to_color(profile: &SlackUserProfile) -> SolidColor { ... }
 
-#[cfg_attr(feature = "tracing", tracing::instrument(skip(app)))]
+#[cfg_attr(feature = "tracing", instrument(skip(app)))]
 #[tauri::command]
 async fn set_light_color(
     #[allow(unused_variables)] app: AppHandle,
@@ -60,7 +47,7 @@ async fn set_light_color(
     let discovery = USBDeviceDiscovery::new().map_err(|e| e.to_string())?;
     let device = discovery.device().map_err(|e| e.to_string())?;
     #[cfg(feature = "tracing")]
-    tracing::debug!("Found device: {}", device.id());
+    debug!("Found device: {}", device.id());
 
     let s = color.to_lowercase();
     match s.as_str() {
@@ -72,9 +59,19 @@ async fn set_light_color(
                     .map_err(|e| e.to_string());
                 #[cfg(feature = "slack_sync")]
                 {
-                    let profile = color_to_profile(parsed_color);
-                    let tokens = slack_api::retrieve_tokens(app.clone())?;
-                    slack_api::slack_set_profile(profile, tokens).await?;
+                    let settings = slack_api::SlackSettings::load(&app).unwrap_or_default();
+                    if settings.slack_tokens.has_any() {
+                        if settings.slack_status_map.is_empty() {
+                            slack_api::SlackSettings::warn_missing_status_map(&app);
+                            return Err("Slack status map is empty".into())
+                        } else {
+                            let profile = color_to_profile(app.clone(), parsed_color.clone());
+                            let tokens = slack_api::retrieve_tokens(app.clone())?;
+                            slack_api::slack_set_profile(profile, tokens).await?;
+                        }
+                    } else {
+                        slack_api::SlackSettings::warn_missing_tokens(&app);
+                    }
                 }
                 res
             } else {
@@ -92,7 +89,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
         #[cfg(feature = "tracing")]
-        tracing::info!("a new app instance was opened with {_args:?} and the deep link event was already triggered");
+        info!("a new app instance was opened with {_args:?} and the deep link event was already triggered");
         // Focus this window
         let _ = app.get_webview_window("main")
             .expect("no main window")
@@ -121,20 +118,22 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 let start_urls = app.deep_link().get_current()?;
                 if let Some(urls) = start_urls {
                     // app was likely started by a deep link
-                    println!("deep_link().get_current() URLs: {:?}", urls);
+                    #[cfg(feature = "tracing")]
+                    debug!("deep_link().get_current() URLs: {:?}", urls);
                 }
                 let app_handle = app.app_handle().clone();
                 app.deep_link()
                     .on_open_url(move |event: tauri_plugin_deep_link::OpenUrlEvent| {
                         let urls = event.urls();
-                        println!("deep_link().on_open_url() URLs: {:?}", &urls);
+                        #[cfg(feature = "tracing")]
+                        debug!("deep_link().on_open_url() URLs: {:?}", &urls);
                         let app_handle = app_handle.app_handle().clone();
                         tauri::async_runtime::spawn(async move {
                             let url = urls[0].clone();
                             match try_parse_deep_link(url).await {
                                 Ok(tokens) => {
                                     #[cfg(feature = "tracing")]
-                                    tracing::info!(
+                                    info!(
                                         "\nTokens were acquired successfully\nUser\t{:?}\nBot:\t{:?}\n",
                                         tokens.user_token(),
                                         tokens.bot_token()
@@ -143,7 +142,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                                 }
                                 Err(_err) => {
                                     #[cfg(feature = "tracing")]
-                                    tracing::error!("{}", _err);
+                                    error!("{}", _err);
                                 }
                             }
                         });
@@ -151,29 +150,36 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             }
 
             #[cfg(feature = "tracing")]
-            tracing::info!("Starting Luxafor-ui");
+            info!("Starting Luxafor-ui");
             #[cfg(all(feature = "slack_sync", feature = "tracing"))]
             {
-                tracing::debug!("SLACK_OAUTH_URL: {}", slack_api::SLACK_OAUTH_URL);
+                debug!("SLACK_OAUTH_URL: {}", slack_api::SLACK_OAUTH_URL);
             }
 
             let app_config_dir = app
                 .path()
                 .app_config_dir()
                 .expect("Failed to resolve app config dir");
+            std::fs::create_dir_all(&app_config_dir)
+                .expect("Failed to create app config dir");
 
             let settings_path = app_config_dir.join(SETTINGS_FILENAME);
             #[cfg(feature = "tracing")]
-            tracing::info!("Settings path: {:?}", settings_path);
+            info!("Settings path: {}", settings_path.display());
 
             #[allow(unused_mut)]
             let mut settings_json_default = std::collections::HashMap::new();
             #[cfg(feature = "slack_sync")]
-            settings_json_default.insert(
-                "slack_tokens".to_string(),
-                serde_json::to_value(slack_api::SlackApiTokens::default())?,
-            );
-            // TODO: Insert color/profile-mappings
+            {
+                settings_json_default.insert(
+                    slack_api::SlackSettings::TOKENS_KEY.to_string(),
+                    serde_json::to_value(slack_api::SlackApiTokens::default())?,
+                );
+                settings_json_default.insert(
+                    slack_api::SlackSettings::STATUS_MAP_KEY.to_string(),
+                    serde_json::to_value(slack_api::SlackSettings::default_status_map())?,
+                );
+            }
 
             #[allow(unused)]
             let store = tauri_plugin_store::StoreBuilder::new(app, settings_path)
@@ -181,7 +187,15 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .build()?;
 
             #[cfg(feature = "tracing")]
-            tracing::debug!("Store contents:\n{:#?}", store.entries());
+            debug!("Store contents:\n{:#?}", store.entries());
+
+            #[cfg(feature = "slack_sync")]
+            {
+                let settings = slack_api::SlackSettings::load(app.app_handle()).unwrap_or_default();
+                if !settings.slack_tokens.has_any() {
+                    slack_api::SlackSettings::warn_missing_tokens(app.app_handle());
+                }
+            }
 
             let about_meta = AboutMetadataBuilder::new()
                 .name(Some(PKG_NAME))
@@ -232,7 +246,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     #[cfg(feature = "slack_sync")]
                     "add_to_slack" => {
                         #[cfg(feature = "tracing")]
-                        tracing::debug!("Add to Slack pressed");
+                        debug!("Add to Slack pressed");
 
                         tauri_plugin_opener::open_url(slack_api::SLACK_OAUTH_URL, None::<&str>)
                             .unwrap();
