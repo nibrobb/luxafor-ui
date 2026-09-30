@@ -116,9 +116,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             #[cfg(feature = "slack_sync")]
             {
                 let start_urls = app.deep_link().get_current()?;
+                #[cfg(feature = "tracing")]
                 if let Some(urls) = start_urls {
                     // app was likely started by a deep link
-                    #[cfg(feature = "tracing")]
                     debug!("deep_link().get_current() URLs: {:?}", urls);
                 }
                 let app_handle = app.app_handle().clone();

@@ -1,3 +1,5 @@
+#![allow(clippy::wildcard_imports)]
+
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos::*;
@@ -16,8 +18,9 @@ struct ColorArgs<'a> {
     color: &'a str,
 }
 
+#[allow(clippy::unused_async)]
 async fn invoke_set_color(color: String) {
-    let color1 = color.to_owned();
+    let color1 = color.clone();
     let args = serde_wasm_bindgen::to_value(&ColorArgs { color: &color1 }).unwrap();
     spawn_local(async move {
         invoke("set_light_color", args.clone()).await;
@@ -38,11 +41,11 @@ fn ColorButton(color: &'static str, selected_color: RwSignal<Option<String>>) ->
             if selected_color.get().as_ref().is_some_and(|c| c == color) {
                 format!("selected {}", color.to_lowercase())
             } else {
-                "".to_string()
+                String::new()
             }
         }
         on:click=move |_| {
-            change_color_action.dispatch(color.to_owned());
+            change_color_action.dispatch(color.to_string());
         } >
             {color}
         </button>
