@@ -132,11 +132,11 @@ impl TryFrom<serde_json::Value> for SlackApiTokens {
         let user_token = value
             .get("user_token")
             .and_then(|v| v.as_str())
-            .map(|s| s.into());
+            .map(std::convert::Into::into);
         let bot_token = value
             .get("bot_token")
             .and_then(|v| v.as_str())
-            .map(|s| s.into());
+            .map(std::convert::Into::into);
         Ok(SlackApiTokens::new(user_token, bot_token))
     }
 }
@@ -225,7 +225,7 @@ impl SlackSettings {
     fn parse_tokens(value: serde_json::Value) -> Option<SlackApiTokens> {
         serde_json::from_value::<SlackApiTokens>(value.clone())
             .ok()
-            .or_else(|| {
+            .or_else(move || {
                 let object = value.as_object()?;
                 let user_token = object
                     .get("user_token")
@@ -250,7 +250,7 @@ impl SlackSettings {
             .ok_or("Could not get store".to_string())?;
         store
             .reload()
-            .map_err(|e| format!("Reload store failed: {}", e))?;
+            .map_err(|e| format!("Reload store failed: {e}"))?;
 
         let slack_tokens = store
             .get(Self::TOKENS_KEY)
@@ -274,7 +274,7 @@ impl SlackSettings {
         let store_path = resolve_store_path(app)?;
         if let Some(parent_dir) = store_path.parent() {
             std::fs::create_dir_all(parent_dir)
-                .map_err(|e| format!("Could not create settings dir: {}", e))?;
+                .map_err(|e| format!("Could not create settings dir: {e}"))?;
         }
 
         let store = app
@@ -390,9 +390,9 @@ fn resolve_store_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
         .map(|path| path.join(SETTINGS_FILENAME))
 }
 
-/// Retrieves the SlackApiTokens from the store.
-pub(crate) fn retrieve_tokens(app: AppHandle) -> Result<SlackApiTokens, String> {
-    SlackSettings::load(&app).map(|settings| settings.slack_tokens)
+/// Retrieves the `SlackApiTokens` from the store.
+pub(crate) fn retrieve_tokens(app: &AppHandle) -> Result<SlackApiTokens, String> {
+    SlackSettings::load(app).map(|settings| settings.slack_tokens)
 }
 
 impl AsRef<SlackApiTokens> for SlackApiTokens {
@@ -401,18 +401,18 @@ impl AsRef<SlackApiTokens> for SlackApiTokens {
     }
 }
 
-/// Stores the SlackApiTokens in the store (resolved settings.json).
-pub(crate) fn store_tokens<T, U>(app: AppHandle, tokens: T) -> Result<(), String>
+/// Stores the `SlackApiTokens` in the store (resolved settings.json).
+pub(crate) fn store_tokens<T, U>(app: &AppHandle, tokens: T) -> Result<(), String>
 where
     T: AsRef<U>,
     U: Serialize,
 {
-    let settings = SlackSettings::load(&app).unwrap_or_else(|_| SlackSettings::defaults());
+    let settings = SlackSettings::load(app).unwrap_or_else(|_| SlackSettings::defaults());
     let mut updated_settings = settings;
     updated_settings.slack_tokens =
         serde_json::from_value(serde_json::to_value(tokens.as_ref()).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
-    updated_settings.save(&app)
+    updated_settings.save(app)
 }
 
 pub(crate) enum DeepLinkParseError {
@@ -426,6 +426,7 @@ pub(crate) enum DeepLinkParseError {
 
 impl Display for DeepLinkParseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        #[allow(clippy::enum_glob_use)]
         use DeepLinkParseError::*;
 
         let message = match *self {
@@ -437,7 +438,7 @@ impl Display for DeepLinkParseError {
             APITestFailed(ref msg) => format!("APITestFailed({msg})"),
         };
 
-        f.write_fmt(format_args!("DeepLinkParseError::{}", message))
+        f.write_fmt(format_args!("DeepLinkParseError::{message}"))
     }
 }
 async fn test_token<SC>(client: &SlackClient<SC>, token: &SlackApiToken) -> Result<(), String>
@@ -472,6 +473,7 @@ async fn test_api(tokens: &SlackApiTokens) -> Result<(), String> {
 pub(crate) async fn try_parse_deep_link(
     url: tauri::Url,
 ) -> Result<SlackApiTokens, DeepLinkParseError> {
+    #[allow(clippy::enum_glob_use)]
     use DeepLinkParseError::*;
 
     if let Some(auth) = url.domain() {
@@ -483,9 +485,7 @@ pub(crate) async fn try_parse_deep_link(
             if key1 != "user_token" {
                 Err(MissingUserToken)
             } else if let Some((key2, value2)) = query_pairs.next() {
-                if key2 != "bot_token" {
-                    Err(MissingBotToken)
-                } else {
+                if key2 == "bot_token" {
                     let user_token = SlackApiToken::new(SlackApiTokenValue(value1.into()));
                     let bot_token = SlackApiToken::new(SlackApiTokenValue(value2.into()));
                     let tokens = SlackApiTokens::new(
@@ -497,6 +497,8 @@ pub(crate) async fn try_parse_deep_link(
                     } else {
                         Ok(tokens)
                     }
+                } else {
+                    Err(MissingBotToken)
                 }
             } else {
                 Err(IncorrectQueryString)

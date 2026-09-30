@@ -19,6 +19,7 @@ const COMMENTS: &str = "A simple app to control your Luxafor Flag";
 const COPYRIGHT: &str = include_str!("copyright.txt");
 const SETTINGS_FILENAME: &str = "settings.json";
 
+#[allow(unused_imports)]
 #[cfg(feature = "tracing")]
 use tracing::{debug, error, info, instrument};
 
@@ -29,10 +30,10 @@ mod slack_api;
 use slack_morphism::SlackUserProfile;
 
 #[cfg(feature = "slack_sync")]
-fn color_to_profile(app: AppHandle, color: SolidColor) -> SlackUserProfile {
-    slack_api::SlackSettings::load(&app)
+fn color_to_profile(app: &AppHandle, color: &SolidColor) -> SlackUserProfile {
+    slack_api::SlackSettings::load(app)
         .unwrap_or_default()
-        .profile_for_color(&color)
+        .profile_for_color(color)
 }
 
 // TODO: Implement this
@@ -64,11 +65,10 @@ async fn set_light_color(
                         if settings.slack_status_map.is_empty() {
                             slack_api::SlackSettings::warn_missing_status_map(&app);
                             return Err("Slack status map is empty".into());
-                        } else {
-                            let profile = color_to_profile(app.clone(), parsed_color.clone());
-                            let tokens = slack_api::retrieve_tokens(app.clone())?;
-                            slack_api::slack_set_profile(profile, tokens).await?;
                         }
+                        let profile = color_to_profile(&app, &parsed_color);
+                        let tokens = slack_api::retrieve_tokens(&app)?;
+                        slack_api::slack_set_profile(profile, tokens).await?;
                     } else {
                         slack_api::SlackSettings::warn_missing_tokens(&app);
                     }
@@ -81,20 +81,25 @@ async fn set_light_color(
     }
 }
 
+/// # Errors
+/// Will panic if we cannot create the configuration directory
+/// # Panics
+/// There may be panics
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[allow(clippy::too_many_lines)]
 pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut builder = tauri::Builder::default();
 
     builder = builder
         .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-        #[cfg(feature = "tracing")]
-        info!("a new app instance was opened with {_args:?} and the deep link event was already triggered");
-        // Focus this window
-        let _ = app.get_webview_window("main")
-            .expect("no main window")
-            .set_focus();
-    }));
+        .plugin(tauri_plugin_single_instance::init(|app, #[allow(clippy::used_underscore_binding)] _args, _cwd| {
+            #[cfg(feature = "tracing")]
+            info!("a new app instance was opened with {_args:?} and the deep link event was already triggered");
+            // Focus this window
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_focus();
+            }
+        }));
 
     #[cfg(feature = "slack_sync")]
     {
@@ -137,11 +142,16 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                                         tokens.user_token(),
                                         tokens.bot_token()
                                     );
-                                    store_tokens(app_handle, tokens).unwrap();
+                                    #[allow(clippy::used_underscore_binding)]
+                                    if let Err(_e) = store_tokens(&app_handle, tokens) {
+                                        #[cfg(feature = "tracing")]
+                                        error!("Could not store tokens: {_e}");
+                                    }
                                 }
+                                #[allow(clippy::used_underscore_binding)]
                                 Err(_err) => {
                                     #[cfg(feature = "tracing")]
-                                    error!("{}", _err);
+                                    error!("{_err}");
                                 }
                             }
                         });
