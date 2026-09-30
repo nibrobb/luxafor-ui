@@ -34,7 +34,7 @@ jobs:
 
       - name: Check clippy
         working-directory: "${{ github.workspace }}/src-tauri"
-        run: cargo clippy --all -- -D warnings
+        run: cargo clippy --all-features --all-targets -- -D warnings -D clippy::pedantic
 
   test:
     name: Test (${{ matrix.platform }})
