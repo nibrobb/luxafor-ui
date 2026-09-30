@@ -16,7 +16,6 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Check formatting
-        working-directory: "${{ github.workspace }}/src-tauri"
         run: cargo fmt --all -- --check
 
   check-clippy:
@@ -27,13 +26,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev patchelf libudev-dev libayatana-appindicator3-dev
 
-      - name: Check clippy
-        run: cargo clippy --all-features --all -- -D warnings -D clippy::pedantic
+      - name: Cargo hack clippy
+        run: cargo hack clippy --feature-powerset --all -- -D warnings -D clippy::pedantic
 
   test:
     name: Test (${{ matrix.platform }})
