@@ -3,5 +3,5 @@ fn main() {
         "cargo::rustc-env=SLACK_OAUTH_URL={}",
         env!("SLACK_OAUTH_URL")
     );
-    tauri_build::build()
+    tauri_build::build();
 }
