@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use slack_morphism::prelude::*;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_store::StoreExt;
 
 #[cfg(feature = "tracing")]
@@ -270,27 +270,6 @@ impl SlackSettings {
         })
     }
 
-    pub(crate) fn save(&self, app: &AppHandle) -> Result<(), String> {
-        let store_path = resolve_store_path(app)?;
-        if let Some(parent_dir) = store_path.parent() {
-            std::fs::create_dir_all(parent_dir)
-                .map_err(|e| format!("Could not create settings dir: {e}"))?;
-        }
-
-        let store = app
-            .get_store(store_path)
-            .ok_or("Could not get store".to_string())?;
-        store.set(
-            Self::TOKENS_KEY,
-            serde_json::to_value(&self.slack_tokens).map_err(|e| e.to_string())?,
-        );
-        store.set(
-            Self::STATUS_MAP_KEY,
-            serde_json::to_value(&self.slack_status_map).map_err(|e| e.to_string())?,
-        );
-        store.save().map_err(|e| e.to_string())
-    }
-
     pub(crate) fn warn_missing_tokens(app: &AppHandle) {
         let message = "Slack is enabled, but no Slack tokens were found in settings.json. Use the Add to Slack action from the tray menu to install the companion Slack app and finish setup.".to_string();
         eprintln!("Warning: {message}");
@@ -318,10 +297,12 @@ impl SlackSettings {
     }
 }
 
+#[allow(clippy::items_after_test_module)]
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+    use std::cell::{Cell, RefCell};
 
     #[test]
     fn deserializes_dummy_settings() {
@@ -380,6 +361,62 @@ mod tests {
         assert!(!settings.slack_tokens.has_any());
         assert!(settings.slack_status_map.is_empty());
     }
+
+    #[test]
+    fn replacing_stored_tokens_updates_active_store_and_saves() {
+        struct TestStore {
+            values: RefCell<HashMap<String, serde_json::Value>>,
+            save_count: Cell<usize>,
+        }
+
+        impl SlackTokenStore for TestStore {
+            fn set_value(&self, key: &str, value: serde_json::Value) {
+                self.values.borrow_mut().insert(key.to_string(), value);
+            }
+
+            fn save_values(&self) -> Result<(), String> {
+                self.save_count.set(self.save_count.get() + 1);
+                Ok(())
+            }
+        }
+
+        let store = TestStore {
+            values: RefCell::new(HashMap::new()),
+            save_count: Cell::new(0),
+        };
+        let status_map = json!({"red": {"status": "Busy", "emoji": ":no_entry:"}});
+        store.values.borrow_mut().insert(
+            SlackSettings::STATUS_MAP_KEY.to_string(),
+            status_map.clone(),
+        );
+
+        write_tokens(
+            &store,
+            SlackApiTokens::new(
+                Some(SlackApiTokenValue("xoxp-workspace-1".to_string())),
+                Some(SlackApiTokenValue("xoxb-workspace-1".to_string())),
+            ),
+        )
+        .unwrap();
+        write_tokens(
+            &store,
+            SlackApiTokens::new(
+                Some(SlackApiTokenValue("xoxp-workspace-2".to_string())),
+                Some(SlackApiTokenValue("xoxb-workspace-2".to_string())),
+            ),
+        )
+        .unwrap();
+
+        let values = store.values.borrow();
+        let cached_tokens: SlackApiTokens =
+            serde_json::from_value(values.get(SlackSettings::TOKENS_KEY).unwrap().clone()).unwrap();
+        assert_eq!(
+            cached_tokens.user_token.unwrap().value(),
+            "xoxp-workspace-2"
+        );
+        assert_eq!(values.get(SlackSettings::STATUS_MAP_KEY), Some(&status_map));
+        assert_eq!(store.save_count.get(), 2);
+    }
 }
 
 /// Resolves the path to the settings.json file in the app's config directory.
@@ -395,24 +432,36 @@ pub(crate) fn retrieve_tokens(app: &AppHandle) -> Result<SlackApiTokens, String>
     SlackSettings::load(app).map(|settings| settings.slack_tokens)
 }
 
-impl AsRef<SlackApiTokens> for SlackApiTokens {
-    fn as_ref(&self) -> &Self {
-        self
+/// Stores the `SlackApiTokens` in the store (resolved settings.json).
+pub(crate) fn store_tokens(app: &AppHandle, tokens: SlackApiTokens) -> Result<(), String> {
+    let store_path = resolve_store_path(app)?;
+    let store = app
+        .get_store(store_path)
+        .ok_or("Could not get store".to_string())?;
+    write_tokens(store.as_ref(), tokens)
+}
+
+trait SlackTokenStore {
+    fn set_value(&self, key: &str, value: serde_json::Value);
+    fn save_values(&self) -> Result<(), String>;
+}
+
+impl<R: Runtime> SlackTokenStore for tauri_plugin_store::Store<R> {
+    fn set_value(&self, key: &str, value: serde_json::Value) {
+        self.set(key, value);
+    }
+
+    fn save_values(&self) -> Result<(), String> {
+        self.save().map_err(|e| e.to_string())
     }
 }
 
-/// Stores the `SlackApiTokens` in the store (resolved settings.json).
-pub(crate) fn store_tokens<T, U>(app: &AppHandle, tokens: T) -> Result<(), String>
-where
-    T: AsRef<U>,
-    U: Serialize,
-{
-    let settings = SlackSettings::load(app).unwrap_or_else(|_| SlackSettings::defaults());
-    let mut updated_settings = settings;
-    updated_settings.slack_tokens =
-        serde_json::from_value(serde_json::to_value(tokens.as_ref()).map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())?;
-    updated_settings.save(app)
+fn write_tokens(store: &impl SlackTokenStore, tokens: SlackApiTokens) -> Result<(), String> {
+    store.set_value(
+        SlackSettings::TOKENS_KEY,
+        serde_json::to_value(tokens).map_err(|e| e.to_string())?,
+    );
+    store.save_values()
 }
 
 pub(crate) enum DeepLinkParseError {
