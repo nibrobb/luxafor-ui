@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Git tag to use for the release (must include the v prefix, e.g., v1.2.3)'
+        description: "Git tag to use for the release (must include the v prefix, e.g., v1.2.3)"
         required: true
         type: string
   workflow_call:
@@ -42,24 +42,24 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          debdir=deb_repo
-          
-          # Download existing files in debian repo
+          # Download existing files in 'debian' repo
           gh release download         \
             debian                    \
-            --dir "$debdir"           \
+            --dir deb_dir             \
             --repo nibrobb/luxafor-ui \
-            --clobber                 \
             --pattern '*.deb'
             
           # Download release using tag
           gh release download         \
             ${{ inputs.tag }}         \
-            --dir "$debdir"           \
+            --dir deb_dir_latest      \
             --repo nibrobb/luxafor-ui \
+            --clobber                 \
             --pattern '*.deb'
 
-          cd "$debdir"
+          # Copy latest release files to deb_dir
+          cp -v ./deb_dir_latest/*.deb ./deb_dir/
+          cd deb_dir
           # Scan for multiple packages and list them in Packages
           dpkg-scanpackages --multiversion ./ > Packages
           gzip -kf Packages
@@ -83,7 +83,7 @@ jobs:
           gzip -kfc ./artifacts/Changelog > ./artifacts/Changelog.gz
           cp -v                                       \
             ../debian/luxafor-ui-archive-keyring.asc  \
-            ./*.deb                                   \
+            ../deb_dir_latest/*.deb                   \
             Release                                   \
             Release.gpg                               \
             InRelease                                 \
