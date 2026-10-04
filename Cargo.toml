@@ -1,3 +1,8 @@
+[workspace]
+members = ["src-tauri"]
+resolver = "3"
+package = { version = "0.3.0", edition = "2024", authors = ["Robin Kristiansen"], license = "MIT" }
+
 [package]
 name = "luxafor-ui-frontend"
 description = "Luxafor-ui Leptos frontend"
@@ -15,8 +20,3 @@ js-sys = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde-wasm-bindgen = "0.6"
 console_error_panic_hook = "0.1.7"
-
-[workspace]
-members = ["src-tauri"]
-resolver = "3"
-package = { version = "0.2.9", edition = "2024", authors = ["Robin Kristiansen"], license = "MIT" }
