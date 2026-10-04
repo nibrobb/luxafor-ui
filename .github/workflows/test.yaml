@@ -3,9 +3,17 @@ on:
   pull_request:
     branches:
       - tauri
+    paths:
+      - '**/*.rs'
+      - '**/*.toml'
+      - '**/*.lock'
   push:
     branches:
       - tauri
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check-formatting:
@@ -20,7 +28,6 @@ jobs:
 
   check-clippy:
     name: Check clippy
-    needs: check-formatting
     runs-on: ubuntu-26.04
     steps:
       - name: Checkout repository
