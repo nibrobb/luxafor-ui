@@ -42,22 +42,24 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          # Download release using tag
-          gh release download         \
-            ${{ inputs.tag }}         \
-            --dir deb_repo            \
-            --repo nibrobb/luxafor-ui \
-            --pattern '*.deb'
-
+          debdir=deb_repo
+          
           # Download existing files in debian repo
           gh release download         \
             debian                    \
-            --dir deb_repo            \
+            --dir "$debdir"           \
             --repo nibrobb/luxafor-ui \
             --clobber                 \
             --pattern '*.deb'
+            
+          # Download release using tag
+          gh release download         \
+            ${{ inputs.tag }}         \
+            --dir "$debdir"           \
+            --repo nibrobb/luxafor-ui \
+            --pattern '*.deb'
 
-          cd deb_repo
+          cd "$debdir"
           # Scan for multiple packages and list them in Packages
           dpkg-scanpackages --multiversion ./ > Packages
           gzip -kf Packages
