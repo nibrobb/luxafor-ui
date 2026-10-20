@@ -1,7 +1,13 @@
 [workspace]
 members = ["src-tauri"]
 resolver = "3"
-package = { version = "0.3.0", edition = "2024", authors = ["Robin Kristiansen"], license = "MIT" }
+
+[workspace.package]
+edition = "2024"
+version = "0.3.0"
+authors = ["Robin Kristiansen"]
+license = "MIT"
+repository = "https://github.com/nibrobb/luxafor-ui"
 
 [package]
 name = "luxafor-ui-frontend"
@@ -10,6 +16,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
@@ -20,3 +27,15 @@ js-sys = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde-wasm-bindgen = "0.6"
 console_error_panic_hook = "0.1.7"
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-v{ version }-{ target }{ archive-suffix }"
+disabled-stragegies = ["quick-install", "compile"]
+pkg-fmt = "tgz"
+
+[package.metadata.binstall.overrides.x86_64-unknown-linux-gnu]
+bin-dir = "{ name }-v{ version }-{ target }/{ bin }"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "zip"
