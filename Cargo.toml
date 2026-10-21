@@ -1,7 +1,13 @@
 [workspace]
 members = ["src-tauri"]
 resolver = "3"
-package = { version = "0.3.0", edition = "2024", authors = ["Robin Kristiansen"], license = "MIT" }
+
+[workspace.package]
+edition = "2024"
+version = "0.3.0"
+authors = ["Robin Kristiansen"]
+license = "MIT"
+repository = "https://github.com/nibrobb/luxafor-ui"
 
 [package]
 name = "luxafor-ui-frontend"
@@ -10,6 +16,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
