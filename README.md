@@ -14,12 +14,23 @@
 curl -fsSL https://nibrobb.dev/luxafor-ui.sh | sh
 ```
 
+### Install with cargo-binstall
+Ensure you have cargo-binstall installed, if not, install with
+```bash
+cargo install cargo-binstall
+```
+Then, install Luxafor-ui with
+```bash
+cargo binstall luxafor-ui --git https://github.com/nibrobb/luxafor-ui
+```
+
 ### Manual install
-Go to [Releases](https://github.com/nibrobb/luxafor-ui/releases), expand 'Assets', then choose the distribution that is right for your system.
-If you are on Mac, good luck.
+Go to [Releases](https://github.com/nibrobb/luxafor-ui/releases), expand 'Assets', then choose the distribution that is right for your system. The `.tgz` files are gzipped pre-built binaries for GNU/Linux and Windows, build on GitHub Actions using `ubuntu-latest` and `windows-latest`.
 
 ## Slack integration
 Control your busylight directly from Slack!
+
+Open the system tray icon for Luxafor-ui, then select **Add to Slack**. A browser window should open, and you are redirected to https://nibrobb.dev where an OAuth 2.0 flow happens, upon successful authentication you are sent back to Luxafor-ui and should have the app installed in your Slack workspace. Change your status and see what happens
 
 > [!NOTE]
 > Luxafor-ui must be running when adding to slack since the local app stores the users access tokens
